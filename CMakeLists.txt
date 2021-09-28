@@ -25,12 +25,15 @@ if(WIN32)
 endif()
 
 add_executable(animated-wallpaper main.c)
+set_property(TARGET animated-wallpaper PROPERTY C_STANDARD 99)
 
 target_link_libraries(animated-wallpaper PRIVATE
     sdl
 )
 
 if(WIN32)
+    set_property(TARGET animated-wallpaper PROPERTY VS_DPI_AWARE "PerMonitor")
+
   add_custom_command(TARGET animated-wallpaper POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         $<TARGET_FILE:sdl>
