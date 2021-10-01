@@ -19,23 +19,34 @@ if(WIN32)
             INTERFACE_INCLUDE_DIRECTORIES "${sdl_SOURCE_DIR}/include/"
         )
         target_link_libraries(sdl INTERFACE "${sdl_SOURCE_DIR}/lib/x64/SDL2main.lib")
-
-        message(STATUS "${sdl_SOURCE_DIR}/include/")
     endif()
+endif()
+
+FetchContent_Declare(
+    cute
+    GIT_REPOSITORY https://github.com/RandyGaul/cute_headers.git
+)
+FetchContent_GetProperties(cute)
+if(NOT cute_POPULATED)
+    FetchContent_Populate(cute)
+    add_library(cute INTERFACE IMPORTED)
+    set_target_properties(cute PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${cute_SOURCE_DIR}/"
+    )
 endif()
 
 add_executable(animated-wallpaper main.c)
 set_property(TARGET animated-wallpaper PROPERTY C_STANDARD 99)
 
-target_link_libraries(animated-wallpaper PRIVATE
-    sdl
+target_link_libraries(animated-wallpaper 
+    PRIVATE sdl cute
 )
 
 if(WIN32)
     set_property(TARGET animated-wallpaper PROPERTY VS_DPI_AWARE "PerMonitor")
 
-  add_custom_command(TARGET animated-wallpaper POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        $<TARGET_FILE:sdl>
-        $<TARGET_FILE_DIR:animated-wallpaper>)
+    add_custom_command(TARGET animated-wallpaper POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:sdl>
+            $<TARGET_FILE_DIR:animated-wallpaper>)
 endif()
