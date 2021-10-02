@@ -75,12 +75,13 @@ typedef struct {
 typedef struct {
     SDL_Texture **textures;
     int count;
+    int w, h;
 } Textures;
 
 Textures LoadTextures(const char *dir_path, SDL_Renderer *renderer) {
-    int max_textures = 8;
     Textures textures;
-    textures.count = 0;
+    memset(&textures, 0, sizeof(textures));
+    int max_textures = 8;
     textures.textures = malloc(max_textures * sizeof(*textures.textures));
 
     cf_dir_t dir;
@@ -92,6 +93,14 @@ Textures LoadTextures(const char *dir_path, SDL_Renderer *renderer) {
         if (file.is_reg && cf_match_ext(&file, ".png")) {
             cp_image_t image = cp_load_png(file.path);
             if (!image.pix) ERROR_M("can't load file %s", file.path);
+            if (textures.w == 0 || textures.h == 0) {
+                textures.w = image.w;
+                textures.h = image.h;
+            }
+            if (image.w != textures.w || image.h != textures.h) {
+                ERROR_M("previous image(s) are %ix%i pix, but '%s' is %ix%i pix; all images must have identical dimensions", 
+                    textures.w, textures.h, file.path, image.w, image.h);
+            }
             SDL_Texture *tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STATIC, image.w, image.h);
             if (!tex) ERROR_M("can't create SDL texture %i x %i pix", image.w, image.h);
             if (SDL_UpdateTexture(tex, NULL, image.pix, image.w*4) != 0) 
@@ -148,7 +157,20 @@ int main(int argc, char *argv[]) {
 
     Context context = CreateContext();
     Textures textures = LoadTextures(argv[1], context.renderer);
+    if (textures.count == 0) ERROR_M("No images loaded from '%s'", argv[1]);
     const int delay = atoi(argv[2]);
+
+    int win_w, win_h;
+    SDL_GetWindowSize(context.window, &win_w, &win_h);
+    const float aspect_ratio = max((float)win_w/textures.w, (float)win_h/textures.h);
+    const int target_w = (int)(textures.w * aspect_ratio);
+    const int target_h = (int)(textures.h * aspect_ratio);
+    const SDL_Rect dest_rect = {
+        .x = (win_w - target_w)/2,
+        .y = (win_h - target_h)/2,
+        .w = target_w,
+        .h = target_h
+    };
     int curframe = -1;
     for (;;) {
         int frame = (SDL_GetTicks() / delay) % textures.count;
@@ -157,7 +179,7 @@ int main(int argc, char *argv[]) {
             assert(curframe < textures.count);
             SDL_SetRenderDrawColor(context.renderer, 0, 0, 0, 255);
             SDL_RenderClear(context.renderer);
-            SDL_RenderCopy(context.renderer, textures.textures[curframe], NULL, NULL);
+            SDL_RenderCopy(context.renderer, textures.textures[curframe], NULL, &dest_rect);
             SDL_RenderPresent(context.renderer);
         }
 
