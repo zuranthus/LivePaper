@@ -23,15 +23,15 @@ if(WIN32)
 endif()
 
 FetchContent_Declare(
-    cute
+    cute_headers
     GIT_REPOSITORY https://github.com/RandyGaul/cute_headers.git
 )
-FetchContent_GetProperties(cute)
-if(NOT cute_POPULATED)
-    FetchContent_Populate(cute)
-    add_library(cute INTERFACE IMPORTED)
-    set_target_properties(cute PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES "${cute_SOURCE_DIR}/"
+FetchContent_GetProperties(cute_headers)
+if(NOT cute_headers_POPULATED)
+    FetchContent_Populate(cute_headers)
+    add_library(cute_headers INTERFACE IMPORTED)
+    set_target_properties(cute_headers PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${cute_headers_SOURCE_DIR}/"
     )
 endif()
 
@@ -39,7 +39,7 @@ add_executable(animated-wallpaper main.c)
 set_property(TARGET animated-wallpaper PROPERTY C_STANDARD 99)
 
 target_link_libraries(animated-wallpaper 
-    PRIVATE sdl cute
+    PRIVATE sdl cute_headers
 )
 
 if(WIN32)
