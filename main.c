@@ -5,8 +5,14 @@
 #define CUTE_FILES_IMPLEMENTATION
 #include <cute_files.h>
 
+///////////////////////////////////////
+// WINDOWS PART
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <SDL_syswm.h>
+
 #undef ERROR
-#define ERROR_M(M, ...) error_impl(__LINE__, M, __VA_ARGS__)
+#define ERROR_M(M, ...) error_impl(__LINE__, M, ##__VA_ARGS__)
 #define ERROR() error_impl(__LINE__, NULL)
 
 static void error_impl(int line, const char *message, ...) {
@@ -22,13 +28,6 @@ static void error_impl(int line, const char *message, ...) {
     fflush(stdout);
     exit(1);
 }
-
-///////////////////////////////////////
-// WINDOWS PART
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <SDL_syswm.h>
-#undef LoadImage
 
 SDL_Window* Windows_CreateWindow() {
     // Get the handle of the parent
