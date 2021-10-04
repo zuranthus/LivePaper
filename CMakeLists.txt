@@ -1,7 +1,8 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.14)
 include(FetchContent)
 
 project(animated-wallpaper)
+
 
 ##### SDL2
 if(NOT MSVC)
@@ -26,6 +27,7 @@ else()
     endif()
 endif()
 
+
 ##### cute_headers
 FetchContent_Declare(
     cute_headers
@@ -40,23 +42,29 @@ if(NOT cute_headers_POPULATED)
     )
 endif()
 
+
 ##### executable
 add_executable(animated-wallpaper main.c)
 set_property(TARGET animated-wallpaper PROPERTY C_STANDARD 99)
+
 if(WIN32)
     if(MINGW)
-        target_link_libraries(animated-wallpaper PRIVATE mingw32)
+        list(APPEND PLATFORM_LIBS mingw32)
     endif()
-    target_link_libraries(animated-wallpaper PRIVATE SDL2::SDL2main)
+    list(APPEND PLATFORM_LIBS SDL2::SDL2main)
+
+    if(MSVC)
+        set_property(TARGET animated-wallpaper PROPERTY VS_DPI_AWARE "PerMonitor")
+        add_custom_command(TARGET animated-wallpaper POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E 
+            copy $<TARGET_RUNTIME_DLLS:animated-wallpaper> $<TARGET_FILE_DIR:animated-wallpaper>
+            COMMAND_EXPAND_LISTS
+        )
+    endif()
+elseif(UNIX)
+    list(APPEND PLATFORM_LIBS m X11)
 endif()
-if(MSVC)
-    set_property(TARGET animated-wallpaper PROPERTY VS_DPI_AWARE "PerMonitor")
-    add_custom_command(TARGET animated-wallpaper POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E 
-        copy $<TARGET_RUNTIME_DLLS:animated-wallpaper> $<TARGET_FILE_DIR:animated-wallpaper>
-        COMMAND_EXPAND_LISTS
-    )
-endif()
+
 target_link_libraries(animated-wallpaper 
-    PRIVATE SDL2::SDL2 cute_headers::cute_headers
+    PRIVATE ${PLATFORM_LIBS} SDL2::SDL2 cute_headers::cute_headers
 )
