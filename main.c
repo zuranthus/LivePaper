@@ -18,9 +18,9 @@ typedef struct {
     int w, h;
 } Textures;
 
-#define ERROR_M(M, ...) ErrorAndQuit(__LINE__, M, ##__VA_ARGS__)
-#define ERROR() ErrorAndQuit(__LINE__, NULL)
-static void ErrorAndQuit(int line, const char *message, ...) {
+#define FAIL_WITH(M, ...) MessageAndQuit(__LINE__, M, ##__VA_ARGS__)
+#define FAIL() MessageAndQuit(__LINE__, NULL)
+static void MessageAndQuit(int line, const char *message, ...) {
     va_list args;
     va_start(args, message);
 
@@ -34,41 +34,43 @@ static void ErrorAndQuit(int line, const char *message, ...) {
     exit(1);
 }
 
-#ifdef WINDOWS
+#ifdef WIN32
 #   define WIN32_LEAN_AND_MEAN
 #   include <windows.h>
 #   include <SDL_syswm.h>
 
     void PlatformInit(Context *context) {
+        SetProcessDPIAware();
+
         // Get the handle of the parent
         // It is a WorkerW window, a previous sibling of Progman
         HWND progman = FindWindow("Progman", NULL);
-        if (progman == NULL) ERROR();
+        if (progman == NULL) FAIL();
         // Send the (undocumented) message to trigger the creation of WorkerW in required position
         if (SendMessageTimeout(progman, 0x052C, 0, 0, SMTO_NORMAL, 1000, NULL) == 0)
-            ERROR();
+            FAIL();
         HWND sdl_parent_hwnd = GetWindow(progman, GW_HWNDPREV);
-        if (sdl_parent_hwnd == NULL) ERROR();
+        if (sdl_parent_hwnd == NULL) FAIL();
         char classname[8];
         if (GetClassName(sdl_parent_hwnd, classname, 8) == 0 || strcmp(TEXT("WorkerW"), classname) != 0)
-            ERROR();
+            FAIL();
 
         SDL_Window *window = SDL_CreateWindow("animated-wallpaper", 
             0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), 
             SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL);
-        if (window == NULL) ERROR();
+        if (window == NULL) FAIL();
 
         // Attach SDL window to the parent
         SDL_SysWMinfo info;
         SDL_VERSION(&info.version);
         if (!SDL_GetWindowWMInfo(window, &info)) 
-            ERROR();
+            FAIL();
         HWND sdl_hwnd = info.info.win.window;
         assert(sdl_hwnd != NULL);
         if (SetParent(sdl_hwnd, sdl_parent_hwnd) == NULL) 
-            ERROR();
+            FAIL();
         if (SetWindowLong(sdl_hwnd, GWL_EXSTYLE, WS_EX_NOACTIVATE) == 0) 
-            ERROR();
+            FAIL();
 
         context->window = window;
     }
@@ -83,11 +85,11 @@ static void ErrorAndQuit(int line, const char *message, ...) {
 
     void PlatformInit(Context *context) {
         Display *x_display = XOpenDisplay(NULL);
-        if (x_display == NULL) ERROR_M("can't open X11 display");
+        if (x_display == NULL) FAIL_WITH("can't open X11 display");
         Window x_window = XDefaultRootWindow(x_display);
-        if (!x_window) ERROR();
+        if (!x_window) FAIL();
         context->window = SDL_CreateWindowFrom((void*)x_window);
-        if (context->window == NULL) ERROR_M("can't create SDL window");
+        if (context->window == NULL) FAIL_WITH("can't create SDL window");
     }
 
     void PlatformCleanup(Context *context) {
@@ -108,25 +110,25 @@ Textures LoadTextures(const char *dir_path, SDL_Renderer *renderer) {
 
     cf_dir_t dir;
     if (!cf_dir_open(&dir, dir_path))
-        ERROR_M("can't open directory '%s'", dir_path);
+        FAIL_WITH("can't open directory '%s'", dir_path);
     while (dir.has_next) {
         cf_file_t file;
         cf_read_file(&dir, &file);
         if (file.is_reg && cf_match_ext(&file, ".png")) {
             cp_image_t image = cp_load_png(file.path);
-            if (!image.pix) ERROR_M("can't load file %s", file.path);
+            if (!image.pix) FAIL_WITH("can't load file %s", file.path);
             if (textures.w == 0 || textures.h == 0) {
                 textures.w = image.w;
                 textures.h = image.h;
             }
             if (image.w != textures.w || image.h != textures.h) {
-                ERROR_M("previous image(s) are %ix%i pix, but '%s' is %ix%i pix; all images must have identical dimensions", 
+                FAIL_WITH("previous image(s) are %ix%i pix, but '%s' is %ix%i pix; all images must have identical dimensions", 
                     textures.w, textures.h, file.path, image.w, image.h);
             }
             SDL_Texture *tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STATIC, image.w, image.h);
-            if (!tex) ERROR_M("can't create SDL texture %i x %i pix", image.w, image.h);
+            if (!tex) FAIL_WITH("can't create SDL texture %i x %i pix", image.w, image.h);
             if (SDL_UpdateTexture(tex, NULL, image.pix, image.w*4) != 0) 
-                ERROR();
+                FAIL();
 
             if (textures.count == max_textures) {
                 max_textures *= 2;
@@ -151,11 +153,11 @@ Context CreateContext() {
     Context context;
     memset(&context, 0, sizeof(context));
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
-        ERROR_M("can't initialize SDL");
+        FAIL_WITH("can't initialize SDL");
     PlatformInit(&context);
-    if (context.window == NULL) ERROR_M("can't create window");
+    if (context.window == NULL) FAIL_WITH("can't create window");
     context.renderer = SDL_CreateRenderer(context.window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (context.renderer == NULL) ERROR_M("can't create renderer");
+    if (context.renderer == NULL) FAIL_WITH("can't create renderer");
     return context;
 }
 
@@ -176,7 +178,7 @@ int main(int argc, char *argv[]) {
 
     Context context = CreateContext();
     Textures textures = LoadTextures(argv[1], context.renderer);
-    if (textures.count == 0) ERROR_M("No images loaded from '%s'", argv[1]);
+    if (textures.count == 0) FAIL_WITH("No images loaded from '%s'", argv[1]);
     const int delay = atoi(argv[2]);
 
     int win_w, win_h;
