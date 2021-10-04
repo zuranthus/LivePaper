@@ -51,16 +51,13 @@ if(WIN32)
     if(MINGW)
         list(APPEND PLATFORM_LIBS mingw32)
     endif()
-    list(APPEND PLATFORM_LIBS SDL2::SDL2main)
-
     if(MSVC)
-        set_property(TARGET animated-wallpaper PROPERTY VS_DPI_AWARE "PerMonitor")
         add_custom_command(TARGET animated-wallpaper POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E 
-            copy $<TARGET_RUNTIME_DLLS:animated-wallpaper> $<TARGET_FILE_DIR:animated-wallpaper>
-            COMMAND_EXPAND_LISTS
-        )
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_FILE:SDL2::SDL2>
+                $<TARGET_FILE_DIR:animated-wallpaper>)
     endif()
+    list(APPEND PLATFORM_LIBS SDL2::SDL2main)
 elseif(UNIX)
     list(APPEND PLATFORM_LIBS m X11)
 endif()
