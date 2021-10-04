@@ -1,21 +1,26 @@
 #include <assert.h>
+#include <math.h>
 #include <SDL.h>
 #define CUTE_PNG_IMPLEMENTATION
 #include <cute_png.h>
 #define CUTE_FILES_IMPLEMENTATION
 #include <cute_files.h>
 
-///////////////////////////////////////
-// WINDOWS PART
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <SDL_syswm.h>
+typedef struct {
+    SDL_Window *window;
+    SDL_Renderer *renderer;
+    void *platform_data;
+} Context;
 
-#undef ERROR
-#define ERROR_M(M, ...) error_impl(__LINE__, M, ##__VA_ARGS__)
-#define ERROR() error_impl(__LINE__, NULL)
+typedef struct {
+    SDL_Texture **textures;
+    int count;
+    int w, h;
+} Textures;
 
-static void error_impl(int line, const char *message, ...) {
+#define ERROR_M(M, ...) ErrorAndQuit(__LINE__, M, ##__VA_ARGS__)
+#define ERROR() ErrorAndQuit(__LINE__, NULL)
+static void ErrorAndQuit(int line, const char *message, ...) {
     va_list args;
     va_start(args, message);
 
@@ -29,53 +34,71 @@ static void error_impl(int line, const char *message, ...) {
     exit(1);
 }
 
-SDL_Window* Windows_CreateWindow() {
-    // Get the handle of the parent
-    // It is a WorkerW window, a previous sibling of Progman
-    HWND progman = FindWindow("Progman", NULL);
-    if (progman == NULL) ERROR();
-    // Send the (undocumented) message to trigger the creation of WorkerW in required position
-    if (SendMessageTimeout(progman, 0x052C, 0, 0, SMTO_NORMAL, 1000, NULL) == 0)
-        ERROR();
-    HWND sdl_parent_hwnd = GetWindow(progman, GW_HWNDPREV);
-    if (sdl_parent_hwnd == NULL) ERROR();
-    char classname[8];
-    if (GetClassName(sdl_parent_hwnd, classname, 8) == 0 || strcmp(TEXT("WorkerW"), classname) != 0)
-        ERROR();
+#ifdef WINDOWS
+#   define WIN32_LEAN_AND_MEAN
+#   include <windows.h>
+#   include <SDL_syswm.h>
 
-    SDL_Window *window = SDL_CreateWindow("animated-wallpaper", 
-        0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), 
-        SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL);
-    if (window == NULL) ERROR();
+    void PlatformInit(Context *context) {
+        // Get the handle of the parent
+        // It is a WorkerW window, a previous sibling of Progman
+        HWND progman = FindWindow("Progman", NULL);
+        if (progman == NULL) ERROR();
+        // Send the (undocumented) message to trigger the creation of WorkerW in required position
+        if (SendMessageTimeout(progman, 0x052C, 0, 0, SMTO_NORMAL, 1000, NULL) == 0)
+            ERROR();
+        HWND sdl_parent_hwnd = GetWindow(progman, GW_HWNDPREV);
+        if (sdl_parent_hwnd == NULL) ERROR();
+        char classname[8];
+        if (GetClassName(sdl_parent_hwnd, classname, 8) == 0 || strcmp(TEXT("WorkerW"), classname) != 0)
+            ERROR();
 
-    // Attach SDL window to the parent
-    SDL_SysWMinfo info;
-    SDL_VERSION(&info.version);
-    if (!SDL_GetWindowWMInfo(window, &info)) 
-        ERROR();
-    HWND sdl_hwnd = info.info.win.window;
-    assert(sdl_hwnd != NULL);
-    if (SetParent(sdl_hwnd, sdl_parent_hwnd) == NULL) 
-        ERROR();
-    if (SetWindowLong(sdl_hwnd, GWL_EXSTYLE, WS_EX_NOACTIVATE) == 0) 
-        ERROR();
+        SDL_Window *window = SDL_CreateWindow("animated-wallpaper", 
+            0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), 
+            SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL);
+        if (window == NULL) ERROR();
 
-    return window;
-}
+        // Attach SDL window to the parent
+        SDL_SysWMinfo info;
+        SDL_VERSION(&info.version);
+        if (!SDL_GetWindowWMInfo(window, &info)) 
+            ERROR();
+        HWND sdl_hwnd = info.info.win.window;
+        assert(sdl_hwnd != NULL);
+        if (SetParent(sdl_hwnd, sdl_parent_hwnd) == NULL) 
+            ERROR();
+        if (SetWindowLong(sdl_hwnd, GWL_EXSTYLE, WS_EX_NOACTIVATE) == 0) 
+            ERROR();
 
-// WINDOWS PART END
-////////////////////////////////////////
+        context->window = window;
+    }
 
-typedef struct {
-    SDL_Window *window;
-    SDL_Renderer *renderer;
-} Context;
+    void PlatformCleanup(Context *context) {
+        if (context->window)
+            SDL_DestroyWindow(context->window);
+        context->window = NULL;
+    }
+#else
+#   include <X11/Xlib.h>
 
-typedef struct {
-    SDL_Texture **textures;
-    int count;
-    int w, h;
-} Textures;
+    void PlatformInit(Context *context) {
+        Display *x_display = XOpenDisplay(NULL);
+        if (x_display == NULL) ERROR_M("can't open X11 display");
+        Window x_window = XDefaultRootWindow(x_display);
+        if (!x_window) ERROR();
+        context->window = SDL_CreateWindowFrom((void*)x_window);
+        if (context->window == NULL) ERROR_M("can't create SDL window");
+    }
+
+    void PlatformCleanup(Context *context) {
+        if (context->window)
+            SDL_DestroyWindow(context->window);
+        context->window = NULL;
+        Display *x_display = context->platform_data;
+        if (x_display) XCloseDisplay(x_display);
+        context->platform_data = NULL;
+    }
+#endif
 
 Textures LoadTextures(const char *dir_path, SDL_Renderer *renderer) {
     Textures textures;
@@ -109,7 +132,6 @@ Textures LoadTextures(const char *dir_path, SDL_Renderer *renderer) {
                 max_textures *= 2;
                 textures.textures = realloc(textures.textures, max_textures * sizeof(*textures.textures));
             }
-
             textures.textures[textures.count++] = tex;
             free(image.pix);
         }
@@ -128,10 +150,9 @@ void ClearTextures(Textures *textures) {
 Context CreateContext() {
     Context context;
     memset(&context, 0, sizeof(context));
-
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
         ERROR_M("can't initialize SDL");
-    context.window = Windows_CreateWindow(&context.window);
+    PlatformInit(&context);
     if (context.window == NULL) ERROR_M("can't create window");
     context.renderer = SDL_CreateRenderer(context.window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (context.renderer == NULL) ERROR_M("can't create renderer");
@@ -141,8 +162,7 @@ Context CreateContext() {
 void ClearContext(Context *context) {
     if (context->renderer)
         SDL_DestroyRenderer(context->renderer);
-    if (context->window)
-        SDL_DestroyWindow(context->window);
+    PlatformCleanup(context);
     memset(&context, 0, sizeof(context));
     SDL_Quit();
 }
@@ -161,7 +181,7 @@ int main(int argc, char *argv[]) {
 
     int win_w, win_h;
     SDL_GetWindowSize(context.window, &win_w, &win_h);
-    const float aspect_ratio = max((float)win_w/textures.w, (float)win_h/textures.h);
+    const float aspect_ratio = fmaxf((float)win_w/textures.w, (float)win_h/textures.h);
     const int target_w = (int)(textures.w * aspect_ratio);
     const int target_h = (int)(textures.h * aspect_ratio);
     const SDL_Rect dest_rect = {
@@ -182,13 +202,12 @@ int main(int argc, char *argv[]) {
             SDL_RenderPresent(context.renderer);
         }
 
-		SDL_Delay(10);
-
         SDL_Event event;
         SDL_PollEvent(&event);
         if(event.type == SDL_QUIT) {
             break;
         }
+        SDL_Delay(10);
     }
 
     ClearTextures(&textures);
