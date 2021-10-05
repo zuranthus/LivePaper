@@ -1,106 +1,20 @@
 #include <assert.h>
 #include <math.h>
+
 #include <SDL.h>
 #define CUTE_PNG_IMPLEMENTATION
 #include <cute_png.h>
 #define CUTE_FILES_IMPLEMENTATION
 #include <cute_files.h>
 
-typedef struct {
-    SDL_Window *window;
-    SDL_Renderer *renderer;
-    void *platform_data;
-} Context;
+#include "fail.h"
+#include "platform.h"
 
 typedef struct {
     SDL_Texture **textures;
     int count;
     int w, h;
 } Textures;
-
-#define FAIL_WITH(M, ...) MessageAndQuit(__LINE__, M, ##__VA_ARGS__)
-#define FAIL() MessageAndQuit(__LINE__, NULL)
-static void MessageAndQuit(int line, const char *message, ...) {
-    va_list args;
-    va_start(args, message);
-
-    printf("Error line %i", line);
-    if (message) {
-        printf(": ");
-        vprintf(message, args);
-    }
-    puts("\nExiting...");
-    fflush(stdout);
-    exit(1);
-}
-
-#ifdef WIN32
-#   define WIN32_LEAN_AND_MEAN
-#   include <windows.h>
-#   include <SDL_syswm.h>
-
-    void PlatformInit(Context *context) {
-        SetProcessDPIAware();
-
-        // Get the handle of the parent
-        // It is a WorkerW window, a previous sibling of Progman
-        HWND progman = FindWindow("Progman", NULL);
-        if (progman == NULL) FAIL();
-        // Send the (undocumented) message to trigger the creation of WorkerW in required position
-        if (SendMessageTimeout(progman, 0x052C, 0, 0, SMTO_NORMAL, 1000, NULL) == 0)
-            FAIL();
-        HWND sdl_parent_hwnd = GetWindow(progman, GW_HWNDPREV);
-        if (sdl_parent_hwnd == NULL) FAIL();
-        char classname[8];
-        if (GetClassName(sdl_parent_hwnd, classname, 8) == 0 || strcmp(TEXT("WorkerW"), classname) != 0)
-            FAIL();
-
-        SDL_Window *window = SDL_CreateWindow("animated-wallpaper", 
-            0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), 
-            SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL);
-        if (window == NULL) FAIL();
-
-        // Attach SDL window to the parent
-        SDL_SysWMinfo info;
-        SDL_VERSION(&info.version);
-        if (!SDL_GetWindowWMInfo(window, &info)) 
-            FAIL();
-        HWND sdl_hwnd = info.info.win.window;
-        assert(sdl_hwnd != NULL);
-        if (SetParent(sdl_hwnd, sdl_parent_hwnd) == NULL) 
-            FAIL();
-        if (SetWindowLong(sdl_hwnd, GWL_EXSTYLE, WS_EX_NOACTIVATE) == 0) 
-            FAIL();
-
-        context->window = window;
-    }
-
-    void PlatformCleanup(Context *context) {
-        if (context->window)
-            SDL_DestroyWindow(context->window);
-        context->window = NULL;
-    }
-#else
-#   include <X11/Xlib.h>
-
-    void PlatformInit(Context *context) {
-        Display *x_display = XOpenDisplay(NULL);
-        if (x_display == NULL) FAIL_WITH("can't open X11 display");
-        Window x_window = XDefaultRootWindow(x_display);
-        if (!x_window) FAIL();
-        context->window = SDL_CreateWindowFrom((void*)x_window);
-        if (context->window == NULL) FAIL_WITH("can't create SDL window");
-    }
-
-    void PlatformCleanup(Context *context) {
-        if (context->window)
-            SDL_DestroyWindow(context->window);
-        context->window = NULL;
-        Display *x_display = context->platform_data;
-        if (x_display) XCloseDisplay(x_display);
-        context->platform_data = NULL;
-    }
-#endif
 
 Textures LoadTextures(const char *dir_path, SDL_Renderer *renderer) {
     Textures textures;
@@ -204,12 +118,16 @@ int main(int argc, char *argv[]) {
             SDL_RenderPresent(context.renderer);
         }
 
+        PlatformUpdate(&context);
         SDL_Event event;
         SDL_PollEvent(&event);
         if(event.type == SDL_QUIT) {
+            SDL_SetRenderDrawColor(context.renderer, 0, 0, 0, 255);
+            SDL_RenderClear(context.renderer);
+            SDL_RenderPresent(context.renderer);
             break;
         }
-        SDL_Delay(10);
+        SDL_Delay(1);
     }
 
     ClearTextures(&textures);
