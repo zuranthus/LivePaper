@@ -18,7 +18,7 @@ jobs:
 
     steps:
     - name: Install Dependencies
-      if: runner.os == Linux
+      if: runner.os == 'Linux'
       run: sudo apt-get install libsdl2-dev
     
     - uses: actions/checkout@v2
