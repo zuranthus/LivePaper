@@ -3,7 +3,6 @@ include(FetchContent)
 
 project(animated-wallpaper)
 
-
 ##### SDL2
 if(NOT MSVC)
     find_package(SDL2 REQUIRED)
@@ -38,30 +37,49 @@ if(NOT cute_headers_POPULATED)
     FetchContent_Populate(cute_headers)
     add_library(cute_headers::cute_headers INTERFACE IMPORTED)
     set_target_properties(cute_headers::cute_headers PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES "${cute_headers_SOURCE_DIR}/"
+        INTERFACE_INCLUDE_DIRECTORIES "${cute_headers_SOURCE_DIR}"
     )
 endif()
 
 
-##### executable
-add_executable(animated-wallpaper main.c)
-set_property(TARGET animated-wallpaper PROPERTY C_STANDARD 99)
-
+##### tray (on windows only)
 if(WIN32)
-    if(MINGW)
-        list(APPEND PLATFORM_LIBS mingw32)
+    FetchContent_Declare(
+        tray
+        URL https://raw.githubusercontent.com/zserge/tray/master/tray.h
+        DOWNLOAD_NO_EXTRACT TRUE
+    )
+    FetchContent_GetProperties(tray)
+    if(NOT tray_headers_POPULATED)
+        FetchContent_Populate(tray)
+        add_library(tray::tray INTERFACE IMPORTED)
+        set_target_properties(tray::tray PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${tray_SOURCE_DIR}"
+        )
     endif()
-    if(MSVC)
-        add_custom_command(TARGET animated-wallpaper POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                $<TARGET_FILE:SDL2::SDL2>
-                $<TARGET_FILE_DIR:animated-wallpaper>)
-    endif()
-    list(APPEND PLATFORM_LIBS SDL2::SDL2main)
-elseif(UNIX)
-    list(APPEND PLATFORM_LIBS m X11)
 endif()
 
-target_link_libraries(animated-wallpaper 
-    PRIVATE ${PLATFORM_LIBS} SDL2::SDL2 cute_headers::cute_headers
+
+##### executable
+add_executable(animated-wallpaper 
+    $<$<PLATFORM_ID:Windows>:platform_windows.c>
+    $<$<PLATFORM_ID:Linux>:platform_linux.c>
+    main.c fail.c
 )
+set_target_properties(animated-wallpaper PROPERTIES 
+    WIN32_EXECUTABLE $<PLATFORM_ID:Windows>
+    C_STANDARD 99
+)
+target_link_libraries(animated-wallpaper PRIVATE
+    $<$<BOOL:${MINGW}>:mingw32>
+    "$<$<PLATFORM_ID:Windows>:SDL2::SDL2main;tray::tray>"
+    "$<$<PLATFORM_ID:Linux>:m;X11>"
+    SDL2::SDL2 cute_headers::cute_headers
+)
+if(WIN32)
+    add_custom_command(TARGET animated-wallpaper POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/icon.ico"
+            $<TARGET_FILE:SDL2::SDL2>
+            $<TARGET_FILE_DIR:animated-wallpaper>)
+endif()
