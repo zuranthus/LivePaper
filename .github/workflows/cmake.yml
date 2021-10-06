@@ -24,11 +24,11 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Configure CMake
-      run: 
+      run: |
         cmake --version
         cmake  --log-level=TRACE -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
     - name: Build
-      run:
+      run: |
         mkdir build
         cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
