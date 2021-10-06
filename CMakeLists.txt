@@ -6,6 +6,12 @@ project(animated-wallpaper)
 ##### SDL2
 if(NOT MSVC)
     find_package(SDL2 REQUIRED)
+    if (NOT TARGET SDL2::SDL2)
+        add_library(SDL2::SDL2 UNKNOWN IMPORTED)
+        set_target_properties(SDL2::SDL2 PROPERTIES
+            IMPORTED_LOCATION "${SDL2_LIBRARIES}"
+            INTERFACE_INCLUDE_DIRECTORIES "${SDL2_INCLUDE_DIRS}")
+    endif()
 else()
     FetchContent_Declare(
         SDL2

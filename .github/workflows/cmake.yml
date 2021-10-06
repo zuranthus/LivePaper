@@ -19,16 +19,12 @@ jobs:
     steps:
     - name: Install Dependencies
       if: runner.os == 'Linux'
-      run: sudo apt-get install libsdl2-dev
+      run: sudo apt-get -yq update && sudo apt-get -yq install cmake libsdl2-dev
     
     - uses: actions/checkout@v2
 
     - name: Configure CMake
-      run: |
-        cmake --version
-        cmake  --log-level=TRACE -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
     - name: Build
-      run: |
-        mkdir build
-        cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
