@@ -1,7 +1,13 @@
 cmake_minimum_required(VERSION 3.14)
+project(animated-wallpaper)
+
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+
 include(FetchContent)
 
-project(animated-wallpaper)
+##### FFmpeg
+find_package(FFmpeg REQUIRED)
+
 
 ##### SDL2
 if(NOT MSVC)
@@ -10,7 +16,8 @@ if(NOT MSVC)
         add_library(SDL2::SDL2 UNKNOWN IMPORTED)
         set_target_properties(SDL2::SDL2 PROPERTIES
             IMPORTED_LOCATION "${SDL2_LIBRARIES}"
-            INTERFACE_INCLUDE_DIRECTORIES "${SDL2_INCLUDE_DIRS}")
+            INTERFACE_INCLUDE_DIRECTORIES "${SDL2_INCLUDE_DIRS}"
+        )
     endif()
 else()
     FetchContent_Declare(
@@ -80,7 +87,7 @@ target_link_libraries(animated-wallpaper PRIVATE
     $<$<BOOL:${MINGW}>:mingw32>
     "$<$<PLATFORM_ID:Windows>:SDL2::SDL2main;tray::tray>"
     "$<$<PLATFORM_ID:Linux>:m;X11>"
-    SDL2::SDL2 cute_headers::cute_headers
+    SDL2::SDL2 cute_headers::cute_headers FFmpeg::FFmpeg
 )
 if(WIN32)
     add_custom_command(TARGET animated-wallpaper POST_BUILD
