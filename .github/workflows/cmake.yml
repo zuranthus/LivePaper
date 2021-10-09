@@ -19,7 +19,7 @@ jobs:
     steps:
     - name: Install Dependencies
       if: runner.os == 'Linux'
-      run: sudo apt-get -yq update && sudo apt-get -yq install cmake libsdl2-dev ffmpeg
+      run: sudo apt-get -yq update && sudo apt-get -yq install cmake libsdl2-dev ffmpeg libavcodec-dev
     
     - uses: actions/checkout@v2
 
