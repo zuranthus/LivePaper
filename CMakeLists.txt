@@ -6,7 +6,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 include(FetchContent)
 
 ##### FFmpeg
-find_package(FFmpeg REQUIRED)
+find_package(FFmpeg REQUIRED COMPONENTS AVCODEC AVFORMAT AVUTIL SWSCALE)
 
 
 ##### SDL2
@@ -77,7 +77,7 @@ endif()
 add_executable(animated-wallpaper 
     $<$<PLATFORM_ID:Windows>:platform_windows.c>
     $<$<PLATFORM_ID:Linux>:platform_linux.c>
-    main.c fail.c
+    main.c fail.c video.c
 )
 set_target_properties(animated-wallpaper PROPERTIES 
     WIN32_EXECUTABLE $<PLATFORM_ID:Windows>

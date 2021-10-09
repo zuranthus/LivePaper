@@ -83,41 +83,50 @@ void ClearContext(Context *context) {
     SDL_Quit();
 }
 
+void VideoLoad(char *path, int w, int h);
+void VideoNextFrame(SDL_Texture *tex);
+void VideoUnload();
+
 int main(int argc, char *argv[]) {
-    if (argc != 3) {
-        puts("USAGE: animated-wallpaper path-to-dir delay-in-ms");
-        puts("EXAMPLE: ./animated-wallpaper /home/wallpaper/ 100");
-        return -1;
-    }
+    if (argc < 2) FAIL();
+    // if (argc != 3) {
+    //     puts("USAGE: animated-wallpaper path-to-dir delay-in-ms");
+    //     puts("EXAMPLE: ./animated-wallpaper /home/wallpaper/ 100");
+    //     return -1;
+    // }
 
     Context context = CreateContext();
-    Textures textures = LoadTextures(argv[1], context.renderer);
-    if (textures.count == 0) FAIL_WITH("No images loaded from '%s'", argv[1]);
-    const int delay = atoi(argv[2]);
+    // Textures textures = LoadTextures(argv[1], context.renderer);
+    // if (textures.count == 0) FAIL_WITH("No images loaded from '%s'", argv[1]);
+    // const int delay = atoi(argv[2]);
 
     int win_w, win_h;
     SDL_GetWindowSize(context.window, &win_w, &win_h);
-    const float aspect_ratio = fmaxf((float)win_w/textures.w, (float)win_h/textures.h);
-    const int target_w = (int)(textures.w * aspect_ratio);
-    const int target_h = (int)(textures.h * aspect_ratio);
-    const SDL_Rect dest_rect = {
-        .x = (win_w - target_w)/2,
-        .y = (win_h - target_h)/2,
-        .w = target_w,
-        .h = target_h
-    };
-    int curframe = -1;
+    VideoLoad(argv[1], win_w, win_h);
+    SDL_Texture *tex = SDL_CreateTexture(context.renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, win_w, win_h);
+        if (!tex) FAIL_WITH("can't create SDL texture %i x %i pix", win_w, win_h);
+    // const float aspect_ratio = fmaxf((float)win_w/textures.w, (float)win_h/textures.h);
+    // const int target_w = (int)(textures.w * aspect_ratio);
+    // const int target_h = (int)(textures.h * aspect_ratio);
+    // const SDL_Rect dest_rect = {
+    //     .x = (win_w - target_w)/2,
+    //     .y = (win_h - target_h)/2,
+    //     .w = target_w,
+    //     .h = target_h
+    // };
+    // int curframe = -1;
     for (;;) {
-        int frame = (SDL_GetTicks() / delay) % textures.count;
-        if (curframe != frame) {
-            curframe = frame;
-            assert(curframe < textures.count);
+        // int frame = (SDL_GetTicks() / delay) % textures.count;
+        // if (curframe != frame) {
+        //     curframe = frame;
+        //     assert(curframe < textures.count);
             SDL_SetRenderDrawColor(context.renderer, 0, 0, 0, 255);
             SDL_RenderClear(context.renderer);
-            SDL_RenderCopy(context.renderer, textures.textures[curframe], NULL, &dest_rect);
+        //     SDL_RenderCopy(context.renderer, textures.textures[curframe], NULL, &dest_rect);
+        SDL_RenderCopy(context.renderer, tex, NULL, NULL);
             SDL_RenderPresent(context.renderer);
-        }
-
+        // }
+        VideoNextFrame(tex);
         PlatformUpdate(&context);
         SDL_Event event;
         SDL_PollEvent(&event);
@@ -130,7 +139,9 @@ int main(int argc, char *argv[]) {
         SDL_Delay(1);
     }
 
-    ClearTextures(&textures);
+    SDL_DestroyTexture(tex);
+   // ClearTextures(&textures);
     ClearContext(&context);
+    VideoUnload();
     return 0;
 }
