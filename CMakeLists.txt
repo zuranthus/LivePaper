@@ -6,7 +6,26 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 include(FetchContent)
 
 ##### FFmpeg
-find_package(FFmpeg REQUIRED COMPONENTS AVCODEC AVFORMAT AVUTIL SWSCALE)
+if(NOT MSVC)
+    find_package(FFmpeg REQUIRED COMPONENTS AVCODEC AVFORMAT AVUTIL SWSCALE)
+else()
+    FetchContent_Declare(
+        FFmpeg
+        URL https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-4.3.2-full_build-shared.7z
+    )
+    FetchContent_GetProperties(FFmpeg)
+    if(NOT ffmpeg_POPULATED)
+        FetchContent_Populate(FFmpeg)
+        add_library(FFmpeg::FFmpeg INTERFACE IMPORTED)
+        set_target_properties(FFmpeg::FFmpeg PROPERTIES
+            INTERFACE_LINK_DIRECTORIES "${ffmpeg_SOURCE_DIR}/lib"
+            INTERFACE_INCLUDE_DIRECTORIES "${ffmpeg_SOURCE_DIR}/include/"
+            INTERFACE_LINK_LIBRARIES "avcodec;avformat;avutil;swscale"
+        )
+        set(FFMPEG_DLLS avcodec-58.dll avformat-58.dll avutil-56.dll swresample-3.dll swscale-5.dll)
+        list(TRANSFORM FFMPEG_DLLS PREPEND "${ffmpeg_SOURCE_DIR}/bin/")
+    endif()
+endif()
 
 
 ##### SDL2
@@ -35,7 +54,8 @@ else()
         )
         add_library(SDL2::SDL2main STATIC IMPORTED)
         set_target_properties(SDL2::SDL2main PROPERTIES
-            IMPORTED_LOCATION "${sdl2_SOURCE_DIR}/lib/x64/SDL2main.lib")
+            IMPORTED_LOCATION "${sdl2_SOURCE_DIR}/lib/x64/SDL2main.lib"
+        )
     endif()
 endif()
 
@@ -89,10 +109,17 @@ target_link_libraries(animated-wallpaper PRIVATE
     "$<$<PLATFORM_ID:Linux>:m;X11>"
     SDL2::SDL2 cute_headers::cute_headers FFmpeg::FFmpeg
 )
-if(WIN32)
+add_custom_command(TARGET animated-wallpaper POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/icon.ico"
+        $<TARGET_FILE_DIR:animated-wallpaper>
+)
+
+if(MSVC)
     add_custom_command(TARGET animated-wallpaper POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_CURRENT_SOURCE_DIR}/icon.ico"
+            ${FFMPEG_DLLS}
             $<TARGET_FILE:SDL2::SDL2>
-            $<TARGET_FILE_DIR:animated-wallpaper>)
+            $<TARGET_FILE_DIR:animated-wallpaper>
+    )
 endif()
