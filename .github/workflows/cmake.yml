@@ -22,7 +22,7 @@ jobs:
       run: sudo apt-get -yq update && sudo apt-get -yq install cmake libsdl2-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavdevice-dev
       
     - name: Install Dependencies Windows
-      if: runner.os = 'Windows'
+      if: runner.os == 'Windows'
       run: vcpkg install ffmpeg:x64-windows
     
     - uses: actions/checkout@v2
