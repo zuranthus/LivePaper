@@ -60,21 +60,6 @@ else()
 endif()
 
 
-##### cute_headers
-FetchContent_Declare(
-    cute_headers
-    GIT_REPOSITORY https://github.com/RandyGaul/cute_headers.git
-)
-FetchContent_GetProperties(cute_headers)
-if(NOT cute_headers_POPULATED)
-    FetchContent_Populate(cute_headers)
-    add_library(cute_headers::cute_headers INTERFACE IMPORTED)
-    set_target_properties(cute_headers::cute_headers PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES "${cute_headers_SOURCE_DIR}"
-    )
-endif()
-
-
 ##### tray (on windows only)
 if(WIN32)
     FetchContent_Declare(
@@ -107,7 +92,7 @@ target_link_libraries(animated-wallpaper PRIVATE
     $<$<BOOL:${MINGW}>:mingw32>
     "$<$<PLATFORM_ID:Windows>:SDL2::SDL2main;tray::tray>"
     "$<$<PLATFORM_ID:Linux>:m;X11>"
-    SDL2::SDL2 cute_headers::cute_headers FFmpeg::FFmpeg
+    SDL2::SDL2 FFmpeg::FFmpeg
 )
 add_custom_command(TARGET animated-wallpaper POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
