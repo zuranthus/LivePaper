@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <math.h>
+#include <stdbool.h>
 
 #include <SDL.h>
 #define CUTE_PNG_IMPLEMENTATION
@@ -83,8 +84,9 @@ void ClearContext(Context *context) {
     SDL_Quit();
 }
 
+
 void VideoLoad(char *path, int w, int h);
-void VideoNextFrame(SDL_Texture *tex);
+bool VideoNextFrame(SDL_Texture *tex, double delta_sec);
 void VideoUnload();
 
 int main(int argc, char *argv[]) {
@@ -115,18 +117,27 @@ int main(int argc, char *argv[]) {
     //     .h = target_h
     // };
     // int curframe = -1;
+    double ticks_frequency = (double)SDL_GetPerformanceFrequency();
+    uint64_t ticks_now = SDL_GetPerformanceCounter();
+    uint64_t ticks_last = 0;
     for (;;) {
+        ticks_last = ticks_now;
+        ticks_now = SDL_GetPerformanceCounter();
+        double delta_sec = (ticks_now - ticks_last)/ticks_frequency;
         // int frame = (SDL_GetTicks() / delay) % textures.count;
         // if (curframe != frame) {
         //     curframe = frame;
         //     assert(curframe < textures.count);
-            SDL_SetRenderDrawColor(context.renderer, 0, 0, 0, 255);
-            SDL_RenderClear(context.renderer);
-        //     SDL_RenderCopy(context.renderer, textures.textures[curframe], NULL, &dest_rect);
-        SDL_RenderCopy(context.renderer, tex, NULL, NULL);
-            SDL_RenderPresent(context.renderer);
-        // }
-        VideoNextFrame(tex);
+        if (VideoNextFrame(tex, delta_sec)) {
+                SDL_SetRenderDrawColor(context.renderer, 0, 0, 0, 255);
+                SDL_RenderClear(context.renderer);
+            //     SDL_RenderCopy(context.renderer, textures.textures[curframe], NULL, &dest_rect);
+            SDL_RenderCopy(context.renderer, tex, NULL, NULL);
+                SDL_RenderPresent(context.renderer);
+            // }
+        }
+        
+        fflush(stdout);
         PlatformUpdate(&context);
         SDL_Event event;
         SDL_PollEvent(&event);
