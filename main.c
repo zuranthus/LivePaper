@@ -8,9 +8,10 @@
 
 #include "fail.h"
 #include "platform.h"
+#include "video.h"
 
-Context CreateContext() {
-    Context context;
+struct Context CreateContext() {
+    struct Context context;
     memset(&context, 0, sizeof(context));
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
         FAIL_WITH("can't initialize SDL");
@@ -21,18 +22,13 @@ Context CreateContext() {
     return context;
 }
 
-void ClearContext(Context *context) {
+void ClearContext(struct Context *context) {
     if (context->renderer)
         SDL_DestroyRenderer(context->renderer);
     PlatformCleanup(context);
     memset(&context, 0, sizeof(context));
     SDL_Quit();
 }
-
-
-struct Video* VideoLoad(char *path, const Context *context);
-bool VideoNextFrame( double delta_sec, struct Video *video, const Context *context);
-void VideoClear(struct Video *video);
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -42,7 +38,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    Context context = CreateContext();
+    struct Context context = CreateContext();
     struct Video* video = VideoLoad(argv[1], &context);
     
     double ticks_frequency = (double)SDL_GetPerformanceFrequency();
@@ -53,7 +49,7 @@ int main(int argc, char *argv[]) {
         ticks_now = SDL_GetPerformanceCounter();
         double delta_sec = (ticks_now - ticks_last)/ticks_frequency;
 
-        VideoNextFrame(delta_sec, video, &context);
+        VideoUpdate(delta_sec, video, &context);
         
         fflush(stdout);
         PlatformUpdate(&context);
@@ -68,7 +64,7 @@ int main(int argc, char *argv[]) {
         SDL_Delay(1);
     }
 
-    VideoClear(video);
+    VideoClear(video, &context);
     ClearContext(&context);
     return 0;
 }
