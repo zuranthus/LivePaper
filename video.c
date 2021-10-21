@@ -1,4 +1,5 @@
-#include "fail.h"
+#include "video.h"
+
 #include <assert.h>
 #include <stdbool.h>
 
@@ -8,6 +9,7 @@
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
 
+#include "fail.h"
 #include "platform.h"
 
 struct Video {
@@ -15,7 +17,7 @@ struct Video {
     AVFormatContext *input_ctx;
     struct SwsContext *sws_ctx;
     int stream_id;
-    double total_time;
+    double duration;
     double time_base;
 
     double time;
@@ -28,11 +30,10 @@ struct Video {
 struct Video* VideoLoad(char *path, const struct Context *ctx) {
     struct Video *v = av_mallocz(sizeof(struct Video));
 
-    if (avformat_open_input(&v->input_ctx, path, NULL, NULL)!=0)
+    if (avformat_open_input(&v->input_ctx, path, NULL, NULL) != 0)
         FAIL_WITH("Can't open file '%s'", path);
-    if (avformat_find_stream_info(v->input_ctx, NULL)<0)
+    if (avformat_find_stream_info(v->input_ctx, NULL) < 0)
         FAIL_WITH("Can't find stream information");
-
     AVCodec *codec = NULL;
     v->stream_id = av_find_best_stream(v->input_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &codec, 0);
     if (v->stream_id < 0) FAIL();
@@ -43,11 +44,12 @@ struct Video* VideoLoad(char *path, const struct Context *ctx) {
     if (avcodec_open2(v->decoder_ctx, codec, NULL) < 0)
         FAIL();
     v->time_base = av_q2d(stream->time_base);
-    v->total_time = stream->duration*v->time_base;
+    v->duration = v->input_ctx->duration/(double)AV_TIME_BASE;
+    if (v->duration <= 0.00001) FAIL();
 
     int w = v->decoder_ctx->width;
     int h = v->decoder_ctx->height;
-    v->sws_ctx = sws_getContext(
+    v->sws_ctx = sws_getContext( // convert to RGB24, no resize
         w, h, v->decoder_ctx->pix_fmt,
         w, h, AV_PIX_FMT_RGB24,
         SWS_BILINEAR,
@@ -83,85 +85,60 @@ void VideoUpdate(double delta_sec, struct Video *v, const struct Context *ctx) {
     assert(v->input_ctx);
 
     v->time += delta_sec;
-
-    printf("\nUPDATE %.3f/%.2f\n", v->time, v->next_frame_time);
-    if (v->time < v->next_frame_time) {
-        printf("skipping\n");
+    if (v->time < v->next_frame_time) { // previously rendered frame is still valid, nothing to do here
         return;
     }
 
-    bool done = false;
     bool found_frame = false;
-
-    for(;;) {
+    while (!found_frame) {
         AVPacket packet;
         int ret = av_read_frame(v->input_ctx, &packet);
-        if (ret == AVERROR_EOF) {
-            printf("EOF ");
-            if (v->time < v->total_time) {       
-                done = true;
-                printf("waiting for end of video\n");
-            } else {
-                v->time = fmod(v->time, v->total_time);
-                v->next_frame_time = -1.0;
-                avcodec_flush_buffers(v->decoder_ctx);
-                av_seek_frame(v->input_ctx, v->stream_id, 0, AVSEEK_FLAG_BACKWARD);
-                printf(" restarting video from time %.2f\n", v->time);
-                continue;
-            }
-        } else if (ret < 0) {
-            FAIL();
+        if (ret < 0 && ret != AVERROR_EOF) FAIL_WITH("%s", av_err2str(ret));
+        if (ret == AVERROR_EOF) { // reached the end of file, loop
+            v->time = 0.0;
+            v->next_frame_time = -1.0;
+            avcodec_flush_buffers(v->decoder_ctx);
+            av_seek_frame(v->input_ctx, v->stream_id, 0, AVSEEK_FLAG_BACKWARD);
+            av_packet_unref(&packet);
+            continue; // read frame again
         }
 
-        if (!done && packet.stream_index == v->stream_id) {
+        if (packet.stream_index == v->stream_id) {
+            // for video streams 1 packet == 1 frame
+            AVFrame frame = {0};
             if (avcodec_send_packet(v->decoder_ctx, &packet) < 0) FAIL();
-            for (;;) {
-                AVFrame frame = {0};
-                int ret = avcodec_receive_frame(v->decoder_ctx, &frame);
-                if (ret == AVERROR(EAGAIN)) break; // read new frame with av_read_frame and try decoding again
-                else if (ret < 0) FAIL();
+            int ret = avcodec_receive_frame(v->decoder_ctx, &frame);
+            if (ret < 0 && ret != AVERROR(EAGAIN)) FAIL_WITH("%s", av_err2str(ret));
+            if (ret == AVERROR(EAGAIN)) {
+                av_frame_unref(&frame);
+                av_packet_unref(&packet);
+                continue; // read frame again
+            }
 
-                int64_t pts = frame.best_effort_timestamp;
-                if (pts == AV_NOPTS_VALUE) FAIL_WITH("No pts value. Unsupported video codec or corrupted file.");
-                double frame_end_time = (pts + frame.pkt_duration)*v->time_base;
-                assert(frame_end_time >= v->next_frame_time);
+            double frame_end_time = (frame.best_effort_timestamp + frame.pkt_duration)*v->time_base;
+            if (frame_end_time < v->next_frame_time) FAIL(); // something wrong with frame order
+            if (frame_end_time > v->time) {
+                v->next_frame_time = frame_end_time;
 
-                found_frame = (v->time <= frame_end_time);
+                void *pix;
+                int pitch;
+                SDL_LockTexture(v->tex, NULL, &pix, &pitch);
+                sws_scale(v->sws_ctx, (uint8_t const * const *)frame.data,
+                    frame.linesize, 0, v->decoder_ctx->height,
+                    (uint8_t* []){pix, NULL, NULL}, (int [] ){pitch});
+                SDL_UnlockTexture(v->tex);
+                found_frame = true;
 
-                if (found_frame) {
-                    done = true;
-                    v->next_frame_time = frame_end_time;
-
-                    void*pix;
-                    int pitch;
-                    SDL_LockTexture(v->tex, NULL, &pix, &pitch);
-                    sws_scale(v->sws_ctx, (uint8_t const * const *)frame.data,
-                        frame.linesize, 0, v->decoder_ctx->height,
-                        (uint8_t* []){pix, NULL, NULL}, (int [] ){pitch});
-                    SDL_UnlockTexture(v->tex);
-                    printf("new frame %.2f\n", frame_end_time);
-                } else {
-                    printf("skipping frame %.2f\n", frame_end_time);
-                }
-
-                if (done) break;
+                av_frame_unref(&frame);
             }
         }
         av_packet_unref(&packet);
-
-        if (done) break;
     }
 
-    if (!found_frame) printf("\nno frame found\n");
-
-
-    if (found_frame) {
-        SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 0, 255);
-        SDL_RenderClear(ctx->renderer);
-        SDL_RenderCopy(ctx->renderer, v->tex, NULL, &v->tex_dest);
-        SDL_RenderPresent(ctx->renderer);
-    }
-    return;
+    SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 0, 255);
+    SDL_RenderClear(ctx->renderer);
+    SDL_RenderCopy(ctx->renderer, v->tex, NULL, &v->tex_dest);
+    SDL_RenderPresent(ctx->renderer);
 }
 
 void VideoClear(struct Video *v, const struct Context *ctx) {
