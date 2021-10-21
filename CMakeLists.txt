@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 project(animated-wallpaper)
 
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(FetchContent)
 
@@ -80,9 +80,9 @@ endif()
 
 ##### executable
 add_executable(animated-wallpaper 
-    $<$<PLATFORM_ID:Windows>:platform_windows.c>
-    $<$<PLATFORM_ID:Linux>:platform_linux.c>
-    main.c fail.c video.c
+    $<$<PLATFORM_ID:Windows>:src/platform_windows.c>
+    $<$<PLATFORM_ID:Linux>:src/platform_linux.c>
+    src/main.c src/fail.c src/video.c
 )
 set_target_properties(animated-wallpaper PROPERTIES 
     WIN32_EXECUTABLE $<PLATFORM_ID:Windows>
@@ -96,7 +96,7 @@ target_link_libraries(animated-wallpaper PRIVATE
 )
 add_custom_command(TARGET animated-wallpaper POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_SOURCE_DIR}/icon.ico"
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon.ico"
         $<TARGET_FILE_DIR:animated-wallpaper>
 )
 
