@@ -17,9 +17,9 @@ jobs:
         os: [ubuntu-latest, windows-latest]
 
     steps:
-    - name: Install Dependencies
+    - name: Install Dependencies Linux
       if: runner.os == 'Linux'
-      run: sudo apt-get -yq update && sudo apt-get -yq install cmake libsdl2-dev
+      run: sudo apt-get -yq update && sudo apt-get -yq install cmake libsdl2-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavdevice-dev
     
     - uses: actions/checkout@v2
 

@@ -5,7 +5,7 @@
 
 #include "fail.h"
 
-void PlatformInit(Context *context) {
+void PlatformInit(struct Context *context) {
     Display *x_display = XOpenDisplay(NULL);
     if (x_display == NULL) FAIL_WITH("can't open X11 display");
     Window x_window = XDefaultRootWindow(x_display);
@@ -14,9 +14,9 @@ void PlatformInit(Context *context) {
     if (context->window == NULL) FAIL_WITH("can't create SDL window");
 }
 
-void PlatformUpdate(Context *context) {}
+void PlatformUpdate(struct Context *context) {}
 
-void PlatformCleanup(Context *context) {
+void PlatformCleanup(struct Context *context) {
     if (context->window)
         SDL_DestroyWindow(context->window);
     context->window = NULL;

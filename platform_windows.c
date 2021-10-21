@@ -26,7 +26,7 @@ static struct tray tray = {
                                 {.text = NULL}},
 };
 
-void PlatformInit(Context *context) {
+void PlatformInit(struct Context *context) {
     SetProcessDPIAware();
     if (tray_init(&tray) == -1)
         FAIL_WITH("can't create tray with icon '%s'", tray.icon);
@@ -64,11 +64,11 @@ void PlatformInit(Context *context) {
     context->window = window;
 }
 
-void PlatformUpdate(Context *context) {
+void PlatformUpdate(struct Context *context) {
     tray_loop(0);
 }
 
-void PlatformCleanup(Context *context) {
+void PlatformCleanup(struct Context *context) {
     if (context->window)
         SDL_DestroyWindow(context->window);
     context->window = NULL;
