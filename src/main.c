@@ -54,7 +54,7 @@ void ProcessArguments(int argc, char *argv[], struct Context *context) {
         exit(1);
     }
     
-    context->file = _strdup(file->filename[0]);
+    context->file = strdup(file->filename[0]);
     context->fit = FIT_FIT;
     if (fit->count) {
         if (strcmp(fit->sval[0], "fill") == 0) context->fit = FIT_FILL;
