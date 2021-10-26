@@ -27,11 +27,11 @@ struct Video {
     SDL_Rect tex_dest;
 };
 
-struct Video* VideoLoad(char *path, const struct Context *ctx) {
+struct Video* VideoLoad(const struct Context *ctx) {
     struct Video *v = av_mallocz(sizeof(struct Video));
 
-    if (avformat_open_input(&v->input_ctx, path, NULL, NULL) != 0)
-        FAIL_WITH("Can't open file '%s'", path);
+    if (avformat_open_input(&v->input_ctx, ctx->file, NULL, NULL) != 0)
+        FAIL_WITH("Can't open file '%s'", ctx->file);
     if (avformat_find_stream_info(v->input_ctx, NULL) < 0)
         FAIL_WITH("Can't find stream information");
     AVCodec *codec = NULL;
@@ -63,10 +63,9 @@ struct Video* VideoLoad(char *path, const struct Context *ctx) {
 
     int win_w, win_h;
     SDL_GetWindowSize(ctx->window, &win_w, &win_h);
-    const float aspect_ratio = 
-        fminf((float)win_w/w, (float)win_h/h); //fit
-        //fminf((float)win_w/w, (float)win_h/h); //fill
-        //1.0; //center
+    float aspect_ratio = 1.0;
+    if (ctx->fit == FIT_FIT) aspect_ratio = fminf((float)win_w/w, (float)win_h/h);
+    else if (ctx->fit == FIT_FILL) aspect_ratio = fmaxf((float)win_w/w, (float)win_h/h);
     const int target_w = (int)(w * aspect_ratio);
     const int target_h = (int)(h * aspect_ratio);
     const SDL_Rect dest_rect = {

@@ -68,13 +68,29 @@ if(WIN32)
         DOWNLOAD_NO_EXTRACT TRUE
     )
     FetchContent_GetProperties(tray)
-    if(NOT tray_headers_POPULATED)
+    if(NOT tray_POPULATED)
         FetchContent_Populate(tray)
         add_library(tray::tray INTERFACE IMPORTED)
         set_target_properties(tray::tray PROPERTIES
             INTERFACE_INCLUDE_DIRECTORIES "${tray_SOURCE_DIR}"
         )
     endif()
+endif()
+
+
+##### argtable
+FetchContent_Declare(
+    argtable
+    URL https://github.com/argtable/argtable3/releases/download/v3.2.1.52f24e5/argtable-v3.2.1.52f24e5-amalgamation.tar.gz
+)
+FetchContent_GetProperties(argtable)
+if(NOT argtable_POPULATED)
+    FetchContent_Populate(argtable)
+    add_library(argtable::argtable INTERFACE IMPORTED)
+    set_target_properties(argtable::argtable PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${argtable_SOURCE_DIR}/"
+        INTERFACE_SOURCES "${argtable_SOURCE_DIR}/argtable3.c"
+    )
 endif()
 
 
@@ -92,7 +108,7 @@ target_link_libraries(animated-wallpaper PRIVATE
     $<$<BOOL:${MINGW}>:mingw32>
     "$<$<PLATFORM_ID:Windows>:SDL2::SDL2main;tray::tray>"
     "$<$<PLATFORM_ID:Linux>:m;X11>"
-    SDL2::SDL2 FFmpeg::FFmpeg
+    SDL2::SDL2 FFmpeg::FFmpeg argtable::argtable
 )
 add_custom_command(TARGET animated-wallpaper POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
