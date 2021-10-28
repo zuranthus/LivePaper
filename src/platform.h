@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <SDL.h>
 
 enum {
@@ -15,6 +16,7 @@ struct Context {
 
     char *file;
     int fit;
+    bool cache;
 };
 
 void PlatformInit(struct Context *context);

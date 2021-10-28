@@ -12,6 +12,11 @@
 #include "fail.h"
 #include "platform.h"
 
+struct CacheEntry {
+    SDL_Texture *tex;
+    double duration;
+};
+
 struct Video {
     AVCodecContext *decoder_ctx;
     AVFormatContext *input_ctx;
@@ -25,6 +30,9 @@ struct Video {
 
     SDL_Texture *tex;
     SDL_Rect tex_dest;
+
+    struct CacheEntry *cache;
+    int cache_size;
 };
 
 struct Video* VideoLoad(const struct Context *ctx) {
@@ -58,9 +66,6 @@ struct Video* VideoLoad(const struct Context *ctx) {
         NULL
     );
 
-    v->tex = SDL_CreateTexture(ctx->renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, w, h);
-    if (!v->tex) FAIL_WITH("can't create SDL texture %i x %i pix", w, h);
-
     int win_w, win_h;
     SDL_GetWindowSize(ctx->window, &win_w, &win_h);
     float aspect_ratio = 1.0;
@@ -76,6 +81,19 @@ struct Video* VideoLoad(const struct Context *ctx) {
     };
     v->tex_dest = dest_rect;
 
+    if (!ctx->cache) {
+        v->tex = SDL_CreateTexture(ctx->renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, w, h);
+        if (!v->tex) FAIL_WITH("can't create SDL texture %i x %i pix", w, h);
+    } else {
+        int frame_num = stream->nb_frames;
+        if (frame_num > 16 || frame_num <= 0) FAIL_WITH("can't cache the file with %i frames (16 frames is the maximum allowed)", frame_num);
+        v->cache = av_mallocz_array(frame_num, sizeof(struct CacheEntry));
+
+        // TODO:
+        // RUN DECODE IN LOOP
+        // Use returned frame to create a cache entry 
+    }
+
     return v;
 }
 
@@ -87,6 +105,9 @@ void VideoUpdate(double delta_sec, struct Video *v, const struct Context *ctx) {
     if (v->time < v->next_frame_time) { // previously rendered frame is still valid, nothing to do here
         return;
     }
+
+    // TODO: skip decoding if cached
+    // TODO: decouple decoding and texture uploading code to reuse in caching 
 
     bool found_frame = false;
     while (!found_frame) {
@@ -141,7 +162,11 @@ void VideoUpdate(double delta_sec, struct Video *v, const struct Context *ctx) {
 }
 
 void VideoClear(struct Video *v, const struct Context *ctx) {
-    SDL_DestroyTexture(v->tex);
+    if (v->tex) SDL_DestroyTexture(v->tex);
+    if (v->cache) {
+        for (int i = 0; i < v->cache_size; ++i) SDL_DestroyTexture(v->cache[i].tex);
+        av_free(v->cache);
+    }
     sws_freeContext(v->sws_ctx);
     avcodec_close(v->decoder_ctx);
     avformat_close_input(&v->input_ctx);
