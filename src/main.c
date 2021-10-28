@@ -31,11 +31,14 @@ void ProcessArguments(int argc, char *argv[], struct Context *context) {
     const char progname[] = "aniwall";
     struct arg_lit *help;
     struct arg_str  *fit;
+    struct arg_lit *cache;
     struct arg_file *file;
     struct arg_end *end;
     void *argtable[] = {
         help = arg_lit0("h", "help", "display this help and exit"),
         fit = arg_str0(NULL, "fit-mode", "{fit,fill,center}", "controls the way the wallpaper is fit on screen"),
+        cache = arg_lit0(NULL, "cache", "decode all frames at once and store them in memory"),
+        arg_rem(NULL, "this option is available for short clips only (<=16 frames)"),
         file = arg_file1(NULL, NULL, "<file>", "video or animation file to display"),
         end = arg_end(20)
     };
@@ -55,6 +58,7 @@ void ProcessArguments(int argc, char *argv[], struct Context *context) {
     }
     
     context->file = strdup(file->filename[0]);
+    context->cache = (cache->count > 0);
     context->fit = FIT_FIT;
     if (fit->count) {
         if (strcmp(fit->sval[0], "fill") == 0) context->fit = FIT_FILL;
