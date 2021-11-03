@@ -85,7 +85,7 @@ struct Video* VideoLoad(const struct Context *ctx) {
         v->tex = SDL_CreateTexture(ctx->renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, w, h);
         if (!v->tex) FAIL_WITH("can't create SDL texture %i x %i pix", w, h);
     } else {
-        int frame_num = stream->nb_frames;
+        int64_t frame_num = stream->nb_frames;
         if (frame_num > 16 || frame_num <= 0) FAIL_WITH("can't cache the file with %i frames (16 frames is the maximum allowed)", frame_num);
         v->cache = av_mallocz_array(frame_num, sizeof(struct CacheEntry));
 
@@ -95,6 +95,39 @@ struct Video* VideoLoad(const struct Context *ctx) {
     }
 
     return v;
+}
+
+static bool DecodeNextFrame(AVFrame *frame, double *frame_end_time, struct Video *v) {
+    for (;;) {
+        AVPacket packet;
+        int ret = av_read_frame(v->input_ctx, &packet);
+        if (ret < 0 && ret != AVERROR_EOF) FAIL_WITH("%s", av_err2str(ret));
+        if (ret == AVERROR_EOF) { // reached the end of file
+            av_packet_unref(&packet);
+            return false;
+        }
+
+        if (packet.stream_index == v->stream_id) {
+            // for video streams 1 packet == 1 frame
+            if (avcodec_send_packet(v->decoder_ctx, &packet) < 0) FAIL();
+            int ret = avcodec_receive_frame(v->decoder_ctx, frame);
+            if (ret < 0 && ret != AVERROR(EAGAIN)) FAIL_WITH("%s", av_err2str(ret));
+            if (ret == AVERROR(EAGAIN)) {
+                av_frame_unref(frame);
+                av_packet_unref(&packet);
+                continue; // read frame again
+            }
+
+            *frame_end_time = (frame->best_effort_timestamp + frame->pkt_duration)*v->time_base;
+            return true;
+        }
+        av_packet_unref(&packet);
+    }
+}
+
+static void ResetVideo(struct Video *v) {
+    avcodec_flush_buffers(v->decoder_ctx);
+    av_seek_frame(v->input_ctx, v->stream_id, 0, AVSEEK_FLAG_BACKWARD);
 }
 
 void VideoUpdate(double delta_sec, struct Video *v, const struct Context *ctx) {
@@ -107,52 +140,32 @@ void VideoUpdate(double delta_sec, struct Video *v, const struct Context *ctx) {
     }
 
     // TODO: skip decoding if cached
-    // TODO: decouple decoding and texture uploading code to reuse in caching 
 
-    bool found_frame = false;
-    while (!found_frame) {
-        AVPacket packet;
-        int ret = av_read_frame(v->input_ctx, &packet);
-        if (ret < 0 && ret != AVERROR_EOF) FAIL_WITH("%s", av_err2str(ret));
-        if (ret == AVERROR_EOF) { // reached the end of file, loop
+    for (bool found_frame = false; !found_frame;) {
+        AVFrame frame = {0};
+        double frame_end_time = 0.0;
+        if (!DecodeNextFrame(&frame, &frame_end_time, v)) {
+            // no frames left (EOF), restart the video
+            ResetVideo(v);
             v->time = 0.0;
             v->next_frame_time = -1.0;
-            avcodec_flush_buffers(v->decoder_ctx);
-            av_seek_frame(v->input_ctx, v->stream_id, 0, AVSEEK_FLAG_BACKWARD);
-            av_packet_unref(&packet);
-            continue; // read frame again
+            continue;
+        }
+        if (frame_end_time < v->next_frame_time) FAIL(); // something wrong with frame order
+        if (frame_end_time > v->time) {
+            v->next_frame_time = frame_end_time;
+
+            void *pix;
+            int pitch;
+            SDL_LockTexture(v->tex, NULL, &pix, &pitch);
+            sws_scale(v->sws_ctx, (uint8_t const * const *)frame.data,
+                frame.linesize, 0, v->decoder_ctx->height,
+                (uint8_t* []){pix, NULL, NULL}, (int [] ){pitch});
+            SDL_UnlockTexture(v->tex);
+            found_frame = true;
         }
 
-        if (packet.stream_index == v->stream_id) {
-            // for video streams 1 packet == 1 frame
-            AVFrame frame = {0};
-            if (avcodec_send_packet(v->decoder_ctx, &packet) < 0) FAIL();
-            int ret = avcodec_receive_frame(v->decoder_ctx, &frame);
-            if (ret < 0 && ret != AVERROR(EAGAIN)) FAIL_WITH("%s", av_err2str(ret));
-            if (ret == AVERROR(EAGAIN)) {
-                av_frame_unref(&frame);
-                av_packet_unref(&packet);
-                continue; // read frame again
-            }
-
-            double frame_end_time = (frame.best_effort_timestamp + frame.pkt_duration)*v->time_base;
-            if (frame_end_time < v->next_frame_time) FAIL(); // something wrong with frame order
-            if (frame_end_time > v->time) {
-                v->next_frame_time = frame_end_time;
-
-                void *pix;
-                int pitch;
-                SDL_LockTexture(v->tex, NULL, &pix, &pitch);
-                sws_scale(v->sws_ctx, (uint8_t const * const *)frame.data,
-                    frame.linesize, 0, v->decoder_ctx->height,
-                    (uint8_t* []){pix, NULL, NULL}, (int [] ){pitch});
-                SDL_UnlockTexture(v->tex);
-                found_frame = true;
-
-                av_frame_unref(&frame);
-            }
-        }
-        av_packet_unref(&packet);
+        av_frame_unref(&frame);
     }
 
     SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 0, 255);
