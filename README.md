@@ -1,2 +1,2 @@
-﻿# animated-wallpaper
-![CMake](https://github.com/zuranthus/animated-wallpaper/actions/workflows/cmake.yml/badge.svg)
+﻿# Live Paper
+![CMake](https://github.com/zuranthus/LivePaper/actions/workflows/cmake.yml/badge.svg)
