@@ -20,7 +20,7 @@ void TrayQuit(struct tray_menu *item) {
 
 static struct tray tray = {
     .icon = "icon.ico",
-    .menu = (struct tray_menu[]){{.text = "Aniwall", .disabled = true},
+    .menu = (struct tray_menu[]){{.text = "Live Paper", .disabled = true},
                                 {.text = "-"},
                                 {.text = "Quit", .cb = &TrayQuit},
                                 {.text = NULL}},
@@ -44,7 +44,7 @@ void PlatformInit(struct Context *context) {
     if (GetClassName(sdl_parent_hwnd, classname, 8) == 0 || strcmp(TEXT("WorkerW"), classname) != 0)
         FAIL();
 
-    SDL_Window *window = SDL_CreateWindow("animated-wallpaper", 
+    SDL_Window *window = SDL_CreateWindow("live-paper", 
         0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), 
         SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL);
     if (window == NULL) FAIL();

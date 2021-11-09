@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(animated-wallpaper)
+project(live-paper)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -95,32 +95,32 @@ endif()
 
 
 ##### executable
-add_executable(animated-wallpaper 
+add_executable(live-paper 
     $<$<PLATFORM_ID:Windows>:src/platform_windows.c>
     $<$<PLATFORM_ID:Linux>:src/platform_linux.c>
     src/main.c src/fail.c src/video.c
 )
-set_target_properties(animated-wallpaper PROPERTIES 
+set_target_properties(live-paper PROPERTIES 
     WIN32_EXECUTABLE $<PLATFORM_ID:Windows>
     C_STANDARD 99
 )
-target_link_libraries(animated-wallpaper PRIVATE
+target_link_libraries(live-paper PRIVATE
     $<$<BOOL:${MINGW}>:mingw32>
     "$<$<PLATFORM_ID:Windows>:SDL2::SDL2main;tray::tray>"
     "$<$<PLATFORM_ID:Linux>:m;X11>"
     SDL2::SDL2 FFmpeg::FFmpeg argtable::argtable
 )
-add_custom_command(TARGET animated-wallpaper POST_BUILD
+add_custom_command(TARGET live-paper POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon.ico"
-        $<TARGET_FILE_DIR:animated-wallpaper>
+        $<TARGET_FILE_DIR:live-paper>
 )
 
 if(MSVC)
-    add_custom_command(TARGET animated-wallpaper POST_BUILD
+    add_custom_command(TARGET live-paper POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${FFMPEG_DLLS}
             $<TARGET_FILE:SDL2::SDL2>
-            $<TARGET_FILE_DIR:animated-wallpaper>
+            $<TARGET_FILE_DIR:live-paper>
     )
 endif()

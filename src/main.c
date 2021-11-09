@@ -28,7 +28,7 @@ void ClearContext(struct Context *context) {
 }
 
 void ProcessArguments(int argc, char *argv[], struct Context *context) {
-    const char progname[] = "aniwall";
+    const char progname[] = "live-paper";
     struct arg_lit *help;
     struct arg_str  *fit;
     struct arg_lit *cache;
