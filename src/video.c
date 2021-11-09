@@ -22,7 +22,6 @@ struct Video {
     AVFormatContext *input_ctx;
     struct SwsContext *sws_ctx;
     int stream_id;
-    double duration;
     double time_base;
 
     double time;
@@ -52,8 +51,6 @@ struct Video* VideoLoad(const struct Context *ctx) {
     if (avcodec_open2(v->decoder_ctx, codec, NULL) < 0)
         FAIL();
     v->time_base = av_q2d(stream->time_base);
-    v->duration = v->input_ctx->duration/(double)AV_TIME_BASE;
-    if (v->duration <= 0.00001) FAIL();
 
     int w = v->decoder_ctx->width;
     int h = v->decoder_ctx->height;
