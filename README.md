@@ -1,4 +1,4 @@
-﻿# Live Paper
+﻿# LivePaper
 ![Build](https://github.com/zuranthus/LivePaper/actions/workflows/build.yml/badge.svg) ![Platforms Windows | Linux](https://img.shields.io/badge/Platforms-Windows%20%7C%20Linux-blue)
 
 LivePaper is a lightweight animated wallpaper application for Windows and Linux.
@@ -30,7 +30,7 @@ For Arch
 $ sudo pacman -S cmake sdl2 ffmpeg
 ```
 
-Then clone, configure and build with CMake as usual.
+Then clone the repository, configure and build with CMake.
 ```bash
 $ git clone https://github.com/zuranthus/LivePaper.git && cd LivePaper
 $ cmake -B build
