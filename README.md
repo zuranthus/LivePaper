@@ -14,12 +14,23 @@ You can do everything from Visual Studio, if desired. Choose "Clone a repostiory
 You can also build in terminal, similarly to the Linux instructions below. You need to install the requirements manually if using e.g. MinGW.
 
 ### Linux
-Requirements:
-- CMake 3.14
-- FFmpeg
-- SDL 2
+Install the requirements
+- cmake 3.14
+- ffmpeg OR libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavdevice-dev for Ubuntu and the like
+- sdl2
 
-Configure and build with CMake as usual. Example:
+Example for Ubuntu 
+
+```bash
+$ sudo apt-get -yq install cmake libsdl2-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavdevice-dev
+```
+
+For Arch
+```bash
+$ sudo pacman -S cmake sdl2 ffmpeg
+```
+
+Then clone, configure and build with CMake as usual.
 ```bash
 $ git clone https://github.com/zuranthus/LivePaper.git && cd LivePaper
 $ cmake -B build
@@ -30,7 +41,7 @@ $ ./build/live-paper ~/loop.gif &
 ## Use
 ```
 Usage: live-paper [-h] [--fit-mode=<mode>] [--cache] <file>
-Set a video or an animated file as desktop background.
+Display a video or an animated file as desktop background.
 
   -h, --help   = display this help and exit
   --fit-mode=<mode>
@@ -49,3 +60,5 @@ Append `&` to run in background. Run `killall live-paper` to stop.
 
 ### Windows
 LivePaper will run in background from the start, showing an icon in the tray. Right click on the tray icon and select "Quit" to close.
+
+![Close with tray icon](assets/close_with_tray.gif)
