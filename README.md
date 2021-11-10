@@ -1,7 +1,7 @@
 ﻿# LivePaper
 ![Build](https://github.com/zuranthus/LivePaper/actions/workflows/build.yml/badge.svg) ![Platforms Windows | Linux](https://img.shields.io/badge/Platforms-Windows%20%7C%20Linux-blue)
 
-LivePaper is a lightweight animated wallpaper application for Windows and Linux.
+LivePaper is a lightweight application that displays live wallpapers on Windows and Linux. If FFmpeg can play the file, LivePaper can show it as your desktop background.
 
 ![Screencap](assets/screencap.gif)
 
@@ -35,7 +35,7 @@ Then clone the repository, configure and build with CMake.
 $ git clone https://github.com/zuranthus/LivePaper.git && cd LivePaper
 $ cmake -B build
 $ cmake --build build
-$ ./build/live-paper ~/loop.gif &
+$ ./build/live-paper assets/test.gif &
 ```
 
 ## Use
