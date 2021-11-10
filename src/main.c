@@ -49,7 +49,7 @@ void ProcessArguments(int argc, char *argv[], struct Context *context) {
     if (help->count > 0) {
         printf("Usage: %s", progname);
         arg_print_syntax(stdout, argtable, "\n");
-        printf("Set a video or an animated file as desktop background.\n\n");
+        printf("Display a video or an animated file as desktop background.\n\n");
         arg_print_glossary(stdout, argtable, "  %-12s %s\n");
         printf("\nExamples: %s loop.mp4\n"
                  "          %s --fit-mode=fill --cache wallpaper.gif\n",
