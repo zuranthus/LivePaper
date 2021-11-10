@@ -35,11 +35,13 @@ void ProcessArguments(int argc, char *argv[], struct Context *context) {
     struct arg_file *file;
     struct arg_end *end;
     void *argtable[] = {
-        help = arg_lit0("h", "help", "display this help and exit"),
-        fit = arg_str0(NULL, "fit-mode", "{fit,fill,center}", "controls the way the wallpaper is fit on screen"),
-        cache = arg_lit0(NULL, "cache", "decode all frames at once and store them in memory"),
-        arg_rem(NULL, "this option is available for short clips only (<=16 frames)"),
-        file = arg_file1(NULL, NULL, "<file>", "video or animation file to display"),
+        help = arg_lit0("h", "help", "= display this help and exit"),
+        fit = arg_str0(NULL, "fit-mode", "<mode>", ""),
+            arg_rem(NULL, "= controls the way the wallpaper is fit on screen"),
+            arg_rem(NULL, "  possible values: fit, fill, center"),
+        cache = arg_lit0(NULL, "cache", "= decode all frames at once and store them in memory"),
+            arg_rem(NULL, "  this option is available for short clips only (<=16 frames)"),
+        file = arg_file1(NULL, NULL, "<file>", "= video or animation file to display"),
         end = arg_end(20)
     };
     if (arg_nullcheck(argtable) != 0) FAIL();
@@ -47,8 +49,11 @@ void ProcessArguments(int argc, char *argv[], struct Context *context) {
     if (help->count > 0) {
         printf("Usage: %s", progname);
         arg_print_syntax(stdout, argtable, "\n");
-        printf("Displays a video or an animated file as desktop background.\n\n");
-        arg_print_glossary(stdout, argtable, "  %-30s %s\n");
+        printf("Set a video or an animated file as desktop background.\n\n");
+        arg_print_glossary(stdout, argtable, "  %-12s %s\n");
+        printf("\nExamples: %s loop.mp4\n"
+                 "          %s --fit-mode=fill --cache wallpaper.gif\n",
+            progname, progname);
         exit(0);
     }
     if (nerrors > 0) {
