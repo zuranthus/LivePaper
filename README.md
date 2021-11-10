@@ -4,6 +4,7 @@
 LivePaper is a lightweight application that displays live wallpapers on Windows and Linux. If FFmpeg can play the file, LivePaper can show it as your desktop background.
 
 ![Screencap](assets/screencap.gif)
+Art by ![Toyoi Yuuta](https://twitter.com/1041uuu)
 
 ## Build
 ### Windows
@@ -62,3 +63,7 @@ Append `&` to run in background. Run `killall live-paper` to stop.
 LivePaper will run in background from the start, showing an icon in the tray. Right click on the tray icon and select "Quit" to close.
 
 ![Close with tray icon](assets/close_with_tray.gif)
+
+## Notice
+
+Art by ![Toyoi Yuuta](https://twitter.com/1041uuu) is used for test wallpapers.
