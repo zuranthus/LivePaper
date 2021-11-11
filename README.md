@@ -2,7 +2,7 @@
 ![Build](https://github.com/zuranthus/LivePaper/actions/workflows/build.yml/badge.svg) ![Platforms Windows | Linux](https://img.shields.io/badge/Platforms-Windows%20%7C%20Linux-blue)
 
 LivePaper is a lightweight application that displays live wallpapers on Windows and Linux.
-<br>If FFmpeg can play the file, LivePaper can show it as your desktop background.
+<br>Both gif and video files are supported. If FFmpeg can play the file, LivePaper can show it as your desktop background.
 
 ![Screencap](assets/screencap.gif)
 
