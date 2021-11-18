@@ -32,7 +32,9 @@ jobs:
       
     - name: Package
       if: runner.os == 'Windows'
-      run: cpack
+      run: |
+        cd build
+        cpack
     
     - name: Publish
       if: runner.os == 'Windows'
