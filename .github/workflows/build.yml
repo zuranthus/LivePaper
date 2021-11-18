@@ -35,13 +35,17 @@ jobs:
       run: |
         cd build
         cpack
-    
+
     - name: Publish
       if: runner.os == 'Windows' && github.ref == 'refs/heads/main'
-      uses: marvinpinto/action-automatic-releases@v1.2.1
+      uses: ncipollo/release-action@v1.8.10
       with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "latest"
+        token: ${{ secrets.GITHUB_TOKEN }}
+        allowUpdates: true
+        artifactErrorsFailBuild: true
         prerelease: true
-        title: "Development Build"
-        files: ./dist/*.msi
+        removeArtifacts: true
+        tag: latest
+        commit: main
+        name: "Development Build"
+        artifacts:: "${{github.workspace}}/build/dist/*.*"
