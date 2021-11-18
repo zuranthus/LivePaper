@@ -96,7 +96,7 @@ endif()
 
 ##### executable
 add_executable(live-paper 
-    $<$<PLATFORM_ID:Windows>:src/platform_windows.c>
+    $<$<PLATFORM_ID:Windows>:src/platform_windows.c;assets/win.rc>
     $<$<PLATFORM_ID:Linux>:src/platform_linux.c>
     src/main.c src/fail.c src/video.c
 )
