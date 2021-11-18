@@ -35,6 +35,7 @@ jobs:
       run: |
         cd build
         cpack
+        git push --delete origin latest
 
     - name: Publish
       if: runner.os == 'Windows' && github.ref == 'refs/heads/main'
