@@ -48,4 +48,4 @@ jobs:
         tag: latest
         commit: main
         name: "Development Build"
-        artifacts:: "${{github.workspace}}/build/dist/*.*"
+        artifacts: "${{github.workspace}}/build/dist/*.*"
