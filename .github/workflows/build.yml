@@ -31,13 +31,13 @@ jobs:
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
       
     - name: Package
-      if: runner.os == 'Windows'
+      if: runner.os == 'Windows' && github.ref == 'refs/heads/main'
       run: |
         cd build
         cpack
     
     - name: Publish
-      if: runner.os == 'Windows'
+      if: runner.os == 'Windows' && github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v1
       with:
         files: ${{github.workspace}}/build/dist/*.*
