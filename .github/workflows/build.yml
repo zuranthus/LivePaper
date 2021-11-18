@@ -44,4 +44,4 @@ jobs:
         automatic_release_tag: "latest"
         prerelease: true
         title: "Development Build"
-        files: dist/*
+        files: ${{github.workspace}}/build/dist/*.msi
