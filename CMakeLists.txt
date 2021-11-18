@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(live-paper)
+project(live-paper VERSION 0.0.0)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -96,7 +96,7 @@ endif()
 
 ##### executable
 add_executable(live-paper 
-    $<$<PLATFORM_ID:Windows>:src/platform_windows.c>
+    $<$<PLATFORM_ID:Windows>:src/platform_windows.c;assets/win.rc>
     $<$<PLATFORM_ID:Linux>:src/platform_linux.c>
     src/main.c src/fail.c src/video.c
 )
@@ -115,7 +115,6 @@ add_custom_command(TARGET live-paper POST_BUILD
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon.ico"
         $<TARGET_FILE_DIR:live-paper>
 )
-
 if(MSVC)
     add_custom_command(TARGET live-paper POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -123,4 +122,30 @@ if(MSVC)
             $<TARGET_FILE:SDL2::SDL2>
             $<TARGET_FILE_DIR:live-paper>
     )
+endif()
+
+
+# binaries
+if(MSVC)
+    set(INSTALL_DIR ".")
+    install(TARGETS live-paper RUNTIME DESTINATION ${INSTALL_DIR})
+    install(FILES $<TARGET_FILE:SDL2::SDL2> ${FFMPEG_DLLS} "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon.ico" 
+        DESTINATION ${INSTALL_DIR}
+    )
+
+    set(CPACK_PACKAGE_DIRECTORY dist)
+    set(CPACK_GENERATOR WIX ZIP)
+    set(CPACK_PACKAGE_NAME LivePaper)
+    set(CPACK_PACKAGE_VENDOR Zuranthus)
+    set(CPACK_PACKAGE_EXECUTABLES live-paper LivePaper)
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY ${CPACK_PACKAGE_NAME})
+    set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt")
+    set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
+    set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/zuranthus/LivePaper")
+    set(CPACK_PACKAGE_ICON "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon.ico")
+
+    set(CPACK_WIX_PRODUCT_ICON "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon.ico")
+    set(CPACK_WIX_UPGRADE_GUID A73EF541-19D7-4E50-8CC6-B4E1BAFB760D)
+
+    include(CPack)
 endif()
