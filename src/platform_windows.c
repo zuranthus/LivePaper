@@ -2,8 +2,11 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <shlobj.h>
+#include <shlwapi.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <SDL.h>
 #include <SDL_syswm.h>
 #define TRAY_WINAPI 1
@@ -25,6 +28,49 @@ static struct tray tray = {
                                 {.text = "Quit", .cb = &TrayQuit},
                                 {.text = NULL}},
 };
+
+static char config_dir[MAX_PATH];
+static char config_file[MAX_PATH];
+
+static void SaveConfig(const struct Context *context) {
+    if (!context->file) return;
+    char file[MAX_PATH] = {0};
+    if (PathIsRelativeA(context->file)) {
+        _fullpath(file, context->file, MAX_PATH);
+    } else {
+        strcpy(file, context->file);
+    }
+
+    SHCreateDirectoryExA(NULL, config_dir, NULL);
+    FILE *f = fopen(config_file, "wt");
+    fputs(file, f);
+    fclose(f);
+}
+
+static void LoadConfig(struct Context *context) {
+    if (!PathFileExistsA(config_file)) return;
+    FILE *f = fopen(config_file, "rt");
+    char *file = malloc(MAX_PATH);
+    if (fgets(file, MAX_PATH, f) >= 0) {
+        assert(!context->file);
+        context->file = file;
+    }
+    fclose(f);
+}
+
+void PlatformLoadConfig(struct Context *context) {
+    if (!context->file) {
+        LoadConfig(context);
+    }
+}
+
+void PlatformPreinit() {
+    char appdata[MAX_PATH] = {0};
+    HRESULT hr = SHGetFolderPath(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, appdata);
+    if (FAILED(hr)) FAIL();
+    PathCombine(config_dir, appdata, "LivePaper\\");
+    PathCombine(config_file, config_dir, "config.txt");
+}
 
 void PlatformInit(struct Context *context) {
     SetProcessDPIAware();
@@ -69,6 +115,7 @@ void PlatformUpdate(struct Context *context) {
 }
 
 void PlatformCleanup(struct Context *context) {
+    SaveConfig(context);
     if (context->window)
         SDL_DestroyWindow(context->window);
     context->window = NULL;

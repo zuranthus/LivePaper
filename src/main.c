@@ -11,6 +11,9 @@
 #include "platform.h"
 #include "video.h"
 
+extern void PlatformLoadConfig(struct Context *context);
+extern void PlatformPreinit();
+
 void InitContext(struct Context *ctx) {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) FAIL_WITH("can't initialize SDL");
     PlatformInit(ctx);
@@ -20,11 +23,11 @@ void InitContext(struct Context *ctx) {
 }
 
 void ClearContext(struct Context *context) {
-    if (context->file) free(context->file);
     if (context->renderer) SDL_DestroyRenderer(context->renderer);
     PlatformCleanup(context);
-    memset(&context, 0, sizeof(context));
     SDL_Quit();
+    if (context->file) free(context->file);
+    memset(&context, 0, sizeof(context));
 }
 
 void ProcessArguments(int argc, char *argv[], struct Context *context) {
@@ -41,11 +44,11 @@ void ProcessArguments(int argc, char *argv[], struct Context *context) {
             arg_rem(NULL, "  possible values: fit, fill, center"),
         cache = arg_lit0(NULL, "cache", "= decode all frames at once and store them in memory"),
             arg_rem(NULL, "  this option is available for short clips only (<=16 frames)"),
-        file = arg_file1(NULL, NULL, "<file>", "= video or animation file to display"),
+        file = arg_file0(NULL, NULL, "<file>", "= video or animation file to display"),
         end = arg_end(20)
     };
     if (arg_nullcheck(argtable) != 0) FAIL();
-    int nerrors = arg_parse(argc,argv,argtable);
+    int nerrors = arg_parse(argc, argv, argtable);
     if (help->count > 0) {
         printf("Usage: %s", progname);
         arg_print_syntax(stdout, argtable, "\n");
@@ -62,7 +65,12 @@ void ProcessArguments(int argc, char *argv[], struct Context *context) {
         exit(1);
     }
     
-    context->file = strdup(file->filename[0]);
+    if (file->count > 0) {
+        context->file = strdup(file->filename[0]);
+    } else {
+        PlatformLoadConfig(context);
+    }
+    if (!context->file) FAIL();
     context->cache = (cache->count > 0);
     context->fit = FIT_FIT;
     if (fit->count) {
@@ -73,6 +81,7 @@ void ProcessArguments(int argc, char *argv[], struct Context *context) {
 }
 
 int main(int argc, char *argv[]) {
+    PlatformPreinit();
     struct Context context = {0};
     ProcessArguments(argc, argv, &context);
     InitContext(&context);
