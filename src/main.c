@@ -11,7 +11,10 @@
 #include "platform.h"
 #include "video.h"
 
+Uint32 g_open_file_event = 0;
+
 void InitContext(struct Context *ctx) {
+    g_open_file_event = SDL_RegisterEvents(1);
     if (SDL_Init(SDL_INIT_VIDEO) != 0) FAIL_WITH("can't initialize SDL");
     PlatformInit(ctx);
     if (ctx->window == NULL) FAIL_WITH("can't create window");
@@ -20,11 +23,11 @@ void InitContext(struct Context *ctx) {
 }
 
 void ClearContext(struct Context *context) {
-    if (context->file) free(context->file);
     if (context->renderer) SDL_DestroyRenderer(context->renderer);
     PlatformCleanup(context);
-    memset(&context, 0, sizeof(context));
     SDL_Quit();
+    if (context->file) free(context->file);
+    memset(&context, 0, sizeof(context));
 }
 
 void ProcessArguments(int argc, char *argv[], struct Context *context) {
@@ -41,11 +44,11 @@ void ProcessArguments(int argc, char *argv[], struct Context *context) {
             arg_rem(NULL, "  possible values: fit, fill, center"),
         cache = arg_lit0(NULL, "cache", "= decode all frames at once and store them in memory"),
             arg_rem(NULL, "  this option is available for short clips only (<=16 frames)"),
-        file = arg_file1(NULL, NULL, "<file>", "= video or animation file to display"),
+        file = arg_file0(NULL, NULL, "<file>", "= video or animation file to display"),
         end = arg_end(20)
     };
     if (arg_nullcheck(argtable) != 0) FAIL();
-    int nerrors = arg_parse(argc,argv,argtable);
+    int nerrors = arg_parse(argc, argv, argtable);
     if (help->count > 0) {
         printf("Usage: %s", progname);
         arg_print_syntax(stdout, argtable, "\n");
@@ -62,7 +65,17 @@ void ProcessArguments(int argc, char *argv[], struct Context *context) {
         exit(1);
     }
     
-    context->file = strdup(file->filename[0]);
+    if (file->count > 0) {
+        context->file = strdup(file->filename[0]);
+    } else {
+        PlatformInitGuiMode(context);
+    }
+    if (!context->file) {
+        printf("%s: missing option <file>\n"
+            "Try '%s --help' for more information.", progname, progname);
+        exit(1);
+    }
+
     context->cache = (cache->count > 0);
     context->fit = FIT_FIT;
     if (fit->count) {
@@ -81,7 +94,8 @@ int main(int argc, char *argv[]) {
     double ticks_frequency = (double)SDL_GetPerformanceFrequency();
     uint64_t ticks_now = SDL_GetPerformanceCounter();
     uint64_t ticks_last = 0;
-    for (;;) {
+    bool quit = false;
+    while (!quit) {
         ticks_last = ticks_now;
         ticks_now = SDL_GetPerformanceCounter();
         double delta_sec = (ticks_now - ticks_last)/ticks_frequency;
@@ -90,8 +104,17 @@ int main(int argc, char *argv[]) {
         PlatformUpdate(&context);
 
         SDL_Event event;
-        SDL_PollEvent(&event);
-        if(event.type == SDL_QUIT) break;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                quit = true;
+                break;
+            } else if(event.type == g_open_file_event) {
+                VideoClear(video, &context);
+                free(context.file);
+                context.file = event.user.data1;
+                video = VideoLoad(&context);
+            }
+        }
         SDL_Delay(1);
     }
 

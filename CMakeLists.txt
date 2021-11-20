@@ -106,7 +106,7 @@ set_target_properties(live-paper PROPERTIES
 )
 target_link_libraries(live-paper PRIVATE
     $<$<BOOL:${MINGW}>:mingw32>
-    "$<$<PLATFORM_ID:Windows>:SDL2::SDL2main;tray::tray>"
+    "$<$<PLATFORM_ID:Windows>:SDL2::SDL2main;tray::tray;shell32;shlwapi>"
     "$<$<PLATFORM_ID:Linux>:m;X11>"
     SDL2::SDL2 FFmpeg::FFmpeg argtable::argtable
 )

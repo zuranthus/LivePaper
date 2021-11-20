@@ -5,6 +5,8 @@
 
 #include "fail.h"
 
+void PlatformInitGuiMode(struct Context *context) {}
+
 void PlatformInit(struct Context *context) {
     Display *x_display = XOpenDisplay(NULL);
     if (x_display == NULL) FAIL_WITH("can't open X11 display");
