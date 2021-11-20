@@ -11,10 +11,10 @@
 #include "platform.h"
 #include "video.h"
 
-extern void PlatformLoadConfig(struct Context *context);
-extern void PlatformPreinit();
+Uint32 g_open_file_event = 0;
 
 void InitContext(struct Context *ctx) {
+    g_open_file_event = SDL_RegisterEvents(1);
     if (SDL_Init(SDL_INIT_VIDEO) != 0) FAIL_WITH("can't initialize SDL");
     PlatformInit(ctx);
     if (ctx->window == NULL) FAIL_WITH("can't create window");
@@ -68,9 +68,14 @@ void ProcessArguments(int argc, char *argv[], struct Context *context) {
     if (file->count > 0) {
         context->file = strdup(file->filename[0]);
     } else {
-        PlatformLoadConfig(context);
+        PlatformInitGuiMode(context);
     }
-    if (!context->file) FAIL();
+    if (!context->file) {
+        printf("%s: missing option <file>\n"
+            "Try '%s --help' for more information.", progname, progname);
+        exit(1);
+    }
+
     context->cache = (cache->count > 0);
     context->fit = FIT_FIT;
     if (fit->count) {
@@ -81,7 +86,6 @@ void ProcessArguments(int argc, char *argv[], struct Context *context) {
 }
 
 int main(int argc, char *argv[]) {
-    PlatformPreinit();
     struct Context context = {0};
     ProcessArguments(argc, argv, &context);
     InitContext(&context);
@@ -90,7 +94,8 @@ int main(int argc, char *argv[]) {
     double ticks_frequency = (double)SDL_GetPerformanceFrequency();
     uint64_t ticks_now = SDL_GetPerformanceCounter();
     uint64_t ticks_last = 0;
-    for (;;) {
+    bool quit = false;
+    while (!quit) {
         ticks_last = ticks_now;
         ticks_now = SDL_GetPerformanceCounter();
         double delta_sec = (ticks_now - ticks_last)/ticks_frequency;
@@ -99,8 +104,17 @@ int main(int argc, char *argv[]) {
         PlatformUpdate(&context);
 
         SDL_Event event;
-        SDL_PollEvent(&event);
-        if(event.type == SDL_QUIT) break;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                quit = true;
+                break;
+            } else if(event.type == g_open_file_event) {
+                VideoClear(video, &context);
+                free(context.file);
+                context.file = event.user.data1;
+                video = VideoLoad(&context);
+            }
+        }
         SDL_Delay(1);
     }
 

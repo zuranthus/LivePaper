@@ -19,6 +19,7 @@ struct Context {
     bool cache;
 };
 
+void PlatformInitGuiMode(struct Context *context);
 void PlatformInit(struct Context *context);
 void PlatformUpdate(struct Context *context);
 void PlatformCleanup(struct Context *context);
