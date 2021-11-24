@@ -137,7 +137,7 @@ void PlatformInit(struct Context *context) {
 
     SDL_Window *window = SDL_CreateWindow("live-paper", 
         0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), 
-        SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL);
+        SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
     if (window == NULL) FAIL();
 
     // Attach SDL window to the parent
@@ -151,6 +151,7 @@ void PlatformInit(struct Context *context) {
         FAIL();
     if (SetWindowLong(sdl_hwnd, GWL_EXSTYLE, WS_EX_NOACTIVATE) == 0) 
         FAIL();
+    ShowWindow(sdl_hwnd, SW_SHOW);
 
     context->window = window;
 }
