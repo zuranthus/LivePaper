@@ -80,6 +80,13 @@ To test, run
 $ ./build/live-paper assets/test.gif &
 ```
 
+## Known Issues
+* Probably not all video file types are supported at the moment; let me know if your file doesn't work
+* Unicode is not fully supported on Windows yet
+* Doesn't work with compositors on Linux (yet?)
+* App quits with an error if it finds any issue with the input file
+* Only one display is supported
+
 ## Notice
 
 Art by [Toyoi Yuuta](https://twitter.com/1041uuu) is used for test wallpapers.
