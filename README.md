@@ -9,16 +9,18 @@ LivePaper is a lightweight application that displays live wallpapers on Windows 
 _Wallpaper art by [Toyoi Yuuta](https://twitter.com/1041uuu)_
 
 ## Installation
-**Windows** - use the latest prebuilt binaries: [MSI installer](https://github.com/zuranthus/LivePaper/releases/download/latest/LivePaper-0.0.0-win64.msi) or [portable zip](https://github.com/zuranthus/LivePaper/releases/download/latest/LivePaper-0.0.0-win64.zip).
+### Windows
+Use the latest prebuilt binaries: [MSI installer](https://github.com/zuranthus/LivePaper/releases/download/latest/LivePaper-0.0.0-win64.msi) or [portable zip](https://github.com/zuranthus/LivePaper/releases/download/latest/LivePaper-0.0.0-win64.zip).
 
-**Linux** - build locally from source. Instructions are [here](#build).
+### Linux
+Build locally from source. Instructions are [here](#build).
 
 ## Usage
 ### Windows
-LivePaper will run in background, placing the icon in the tray. If it is the first run, the app will open a window where you can choose the file to be displayed as the wallpaper. LivePaper will remember this file and will start playing it the next time you run the app. You can change the wallpaper or quit the app via the tray icon.  
-![Close with tray icon](assets/close_with_tray.png)
+Just run live-paper.exe file. You can make LivePaper run automatically at startup by following [this guide](https://support.microsoft.com/en-us/windows/add-an-app-to-run-automatically-at-startup-in-windows-10-150da165-dcd9-7230-517b-cf3c295d89dd) from Microsoft (works for Windows 7+).
 
-To run LivePaper at startup, follow [the guide](https://support.microsoft.com/en-us/windows/add-an-app-to-run-automatically-at-startup-in-windows-10-150da165-dcd9-7230-517b-cf3c295d89dd) from Microsoft (works for Windows 7+).
+On its first run, LivePaper will open a window to choose the wallpaper file. The app will remember this file and play it the next time you run LivePaper. You can change the wallpaper file or quit the app via the tray icon.  
+![Close with tray icon](assets/close_with_tray.png)
 
 Note that if LivePaper quits due to error, the remembered wallpaper file will be cleared. The next time the app is started, you will need to choose the wallpaper file again.
 
