@@ -17,12 +17,12 @@ Build locally from source. Instructions are [here](#build).
 
 ## Usage
 ### Windows
-Just run live-paper.exe file. You can make LivePaper run automatically at startup by following [this guide](https://support.microsoft.com/en-us/windows/add-an-app-to-run-automatically-at-startup-in-windows-10-150da165-dcd9-7230-517b-cf3c295d89dd) from Microsoft (works for Windows 7+).
+Simply run live-paper.exe. You can make LivePaper run automatically at startup by following [this guide](https://support.microsoft.com/en-us/windows/add-an-app-to-run-automatically-at-startup-in-windows-10-150da165-dcd9-7230-517b-cf3c295d89dd) from Microsoft (works for Windows 7+).
 
-On its first run, LivePaper will open a window to choose the wallpaper file. The app will remember this file and play it the next time you run LivePaper. You can change the wallpaper file or quit the app via the tray icon.  
+On its first run, LivePaper will open a window to choose the wallpaper file. The app will remember this file and play it the next time you run LivePaper. You can also change the wallpaper file or quit the app via the tray icon.  
 ![Close with tray icon](assets/tray.png)
 
-Note that if LivePaper quits due to error, the remembered wallpaper file will be cleared. The next time the app is started, you will need to choose the wallpaper file again.
+Note that if LivePaper quits due to an error, the remembered wallpaper file will be cleared. The next time the app is started, you will need to choose the wallpaper file again.
 
 ### Linux
 LivePaper is a console application on Linux.
@@ -42,7 +42,7 @@ Examples: live-paper loop.mp4
           live-paper --fit-mode=fill --cache wallpaper.gif
 ```
 
-Append `&` to run LivePaper background. Run `killall live-paper` to stop it.
+Append `&` to run LivePaper in background. Run `killall live-paper` to stop it.
 
 ## Build
 ### Windows
