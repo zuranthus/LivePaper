@@ -20,7 +20,7 @@ Build locally from source. Instructions are [here](#build).
 Just run live-paper.exe file. You can make LivePaper run automatically at startup by following [this guide](https://support.microsoft.com/en-us/windows/add-an-app-to-run-automatically-at-startup-in-windows-10-150da165-dcd9-7230-517b-cf3c295d89dd) from Microsoft (works for Windows 7+).
 
 On its first run, LivePaper will open a window to choose the wallpaper file. The app will remember this file and play it the next time you run LivePaper. You can change the wallpaper file or quit the app via the tray icon.  
-![Close with tray icon](assets/close_with_tray.png)
+![Close with tray icon](assets/tray.png)
 
 Note that if LivePaper quits due to error, the remembered wallpaper file will be cleared. The next time the app is started, you will need to choose the wallpaper file again.
 
