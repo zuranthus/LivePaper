@@ -5,6 +5,7 @@
 #include <commdlg.h>
 #include <shlobj.h>
 #include <shlwapi.h>
+#include <VersionHelpers.h>
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -116,17 +117,23 @@ void PlatformInit(struct Context *context) {
         FAIL_WITH("can't create tray with icon '%s'", tray.icon);
 
     // Get the handle of the parent
-    // It is a WorkerW window, a previous sibling of Progman
+    // On Win8+: WorkerW window, a previous sibling of Progman
+    // On Win7: Progman window; also need to hide WorkerW window when Aero is on
     HWND progman = FindWindow("Progman", NULL);
     if (progman == NULL) FAIL();
     // Send the (undocumented) message to trigger the creation of WorkerW in required position
     if (SendMessageTimeout(progman, 0x052C, 0, 0, SMTO_NORMAL, 1000, NULL) == 0)
         FAIL();
-    HWND sdl_parent_hwnd = GetWindow(progman, GW_HWNDPREV);
-    if (sdl_parent_hwnd == NULL) FAIL();
-    char classname[8];
-    if (GetClassName(sdl_parent_hwnd, classname, 8) == 0 || strcmp(TEXT("WorkerW"), classname) != 0)
-        FAIL();
+    HWND workerw = GetWindow(progman, GW_HWNDPREV);
+    char classname[8] = {0};
+    if (workerw && GetClassName(workerw, classname, 8) == 0 || strcmp(TEXT("WorkerW"), classname) != 0)
+        workerw = NULL;
+    HWND sdl_parent_hwnd = workerw;
+    if (!IsWindows8OrGreater()) {
+        if (workerw) ShowWindow(workerw, SW_HIDE);
+        sdl_parent_hwnd = progman;
+    }
+    if (!sdl_parent_hwnd) FAIL();
 
     SDL_Window *window = SDL_CreateWindow("live-paper", 
         0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), 
