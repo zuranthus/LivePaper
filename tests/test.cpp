@@ -5,7 +5,9 @@
 #include <expected.h>
 #include <filesystem>
 
-TEST_CASE("make_unexpected_str supported arguments") {
+using namespace ffmpeg_decoder;
+
+TEST_CASE("make_unexpected_str supported arguments", "[expected]") {
     SECTION("unformated string") {
         auto u = make_unexpected_str("error");
         REQUIRE(u.value() == "error");
@@ -16,7 +18,7 @@ TEST_CASE("make_unexpected_str supported arguments") {
     }
 }
 
-TEST_CASE("VideoStreamDecoder::FromFile reports errors for invalid filenames") {
+TEST_CASE("FileLoader reports errors for invalid files", "[ffmpeg_decoder]") {
     std::filesystem::path path;
     SECTION("nonexistent file") {
         path = "assets/nonexistent";
@@ -26,14 +28,14 @@ TEST_CASE("VideoStreamDecoder::FromFile reports errors for invalid filenames") {
         path = "assets/invalid.mp4";
         REQUIRE(std::filesystem::exists(path));
     }
-    auto decoder = VideoStreamDecoder::FromFile(path);
+    auto decoder = FileLoader(path).VideoStreamDecoder();
     REQUIRE(!decoder);
     REQUIRE(decoder.error().contains(path.string()));
 }
 
-TEST_CASE("VideoStreamDecoder::FromFile loads video file") {
+TEST_CASE("FileLoader loads videos", "[ffmpeg_decoder]") {
     auto path = GENERATE("assets/test.mp4", "assets/test.gif");
-    auto video = VideoStreamDecoder::FromFile(path);
+    auto video = FileLoader(path).VideoStreamDecoder();
     REQUIRE(video);
     REQUIRE(video->width() == 1000);
     REQUIRE(video->height() == 562);
