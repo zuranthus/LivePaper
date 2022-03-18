@@ -39,7 +39,7 @@ TEST_CASE("make_unexpected_str supported arguments", "[expected]") {
     }
 }
 
-TEST_CASE("FileLoader reports errors for invalid files", "[ffmpeg_decoder]") {
+TEST_CASE("FileLoader reports error for invalid files", "[ffmpeg_decoder]") {
     std::filesystem::path path;
     SECTION("nonexistent file") {
         path = "assets/nonexistent";
@@ -105,7 +105,7 @@ TEST_CASE("VideoDecoder returns no frames after decoding finishes", "[ffmpeg_dec
     REQUIRE(!decoder->NextFrame());
 }
 
-TEST_CASE("VideoDecoder::Reset restarts the decoding", "[ffmpeg_decoder]") {
+TEST_CASE("VideoDecoder can restart after decoding finishes", "[ffmpeg_decoder]") {
     auto decoder = FileLoader(test_path).VideoStreamDecoder();
     while (decoder->HasFrames()) decoder->NextFrame();
     REQUIRE(decoder->Reset());
