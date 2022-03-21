@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <memory>
+#include <chrono>
 #include "expected.h"
 
 
@@ -15,11 +16,20 @@ class VideoDecoder;
 template <typename T>
 using raii_ptr = std::unique_ptr<T, std::function<void(T*)>>;
 
-struct StreamDecoderContext {
-    raii_ptr<AVFormatContext> avformat{};
-    raii_ptr<AVCodecContext> avcodec{};
-    int stream_id{};
-    auto stream() const { return avformat->streams[stream_id]; }
+class StreamDecoderContext {
+public:
+    StreamDecoderContext(raii_ptr<AVFormatContext> avformat, raii_ptr<AVCodecContext> avcodec, int avstream_id)
+        : avformat_(std::move(avformat)), avcodec_(std::move(avcodec)), avstream_index_(avstream_id) {}
+    StreamDecoderContext(StreamDecoderContext&&) = default;
+    StreamDecoderContext& operator=(StreamDecoderContext&&) = default;
+
+    auto avformat() { return avformat_.get(); }
+    auto avcodec() { return avcodec_.get(); }
+    auto avstream() { return avformat_->streams[avstream_index_]; }
+private:
+    raii_ptr<AVFormatContext> avformat_{};
+    raii_ptr<AVCodecContext> avcodec_{};
+    int avstream_index_{};
 };
 
 class FileLoader {
@@ -33,20 +43,30 @@ private:
 
 class VideoDecoder {
 public:
+    using chrono_ms = std::chrono::milliseconds;
+
+    struct Frame {
+        AVFrame* avframe;
+        chrono_ms start_time;
+        chrono_ms end_time;
+        auto width() { return avframe->width; }
+        auto height() { return avframe->height; }
+    };
     explicit VideoDecoder(StreamDecoderContext&& context);
 
-    auto width() const { return context.avcodec->width; }
-    auto height() const { return context.avcodec->height; }
-    auto frames() const { return context.stream()->nb_frames; }
+    auto width() { return context.avcodec()->width; }
+    auto height() { return context.avcodec()->height; }
+    auto frames() { return context.avstream()->nb_frames; }
 
     bool HasFrames() const { return !finished; }
     //TODO: VideoFrame: add start_time, end_time, duration?, format?, w/h?
-    auto NextFrame() -> expected<AVFrame*>;
+    // Returned frame data is valid until next call to NextFrame 
+    auto NextFrame() -> expected<Frame>;
     auto Reset() -> expected<void>;
 private:
     StreamDecoderContext context;
-    raii_ptr<AVPacket> packet;
-    raii_ptr<AVFrame> frame;
+    raii_ptr<AVPacket> avpacket;
+    raii_ptr<AVFrame> avframe;
     bool finished {false};
 };
 

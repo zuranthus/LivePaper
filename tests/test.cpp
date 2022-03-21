@@ -92,7 +92,7 @@ TEST_CASE("VideoDecoder decodes all frames correctly", "[ffmpeg_decoder]") {
     while (decoder->HasFrames()) {
         if (auto frame = decoder->NextFrame()) {
             ++frame_count;
-            CheckFrameContainsRed(frame.value());
+            CheckFrameContainsRed(frame->avframe);
         }
     }
     REQUIRE(frame_count == 16);
@@ -112,7 +112,7 @@ TEST_CASE("VideoDecoder can restart after decoding finishes", "[ffmpeg_decoder]"
     REQUIRE(decoder->HasFrames());
     auto frame = decoder->NextFrame();
     REQUIRE(frame);
-    CheckFrameContainsRed(frame.value());
+    CheckFrameContainsRed(frame->avframe);
 }
 
 TEST_CASE("VideoDecoder can restart multiple times", "[ffmpeg_decoder]") {
@@ -124,7 +124,7 @@ TEST_CASE("VideoDecoder can restart multiple times", "[ffmpeg_decoder]") {
             REQUIRE(decoder->HasFrames());
             auto frame = decoder->NextFrame();
             REQUIRE(frame);
-            CheckFrameContainsRed(frame.value());
+            CheckFrameContainsRed(frame->avframe);
         }
         REQUIRE(decoder->Reset());
     }

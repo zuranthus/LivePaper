@@ -22,69 +22,73 @@ auto FileLoader::MakeError(std::string_view message) const {
 }
 
 auto FileLoader::VideoStreamDecoder() -> expected<VideoDecoder> {
-    StreamDecoderContext ctx;
 
     AVFormatContext* avformat_ctx{};
     auto err = avformat_open_input(&avformat_ctx, std::bit_cast<const char*>(path.u8string().c_str()), NULL, NULL);
     if (err < 0) return MakeError(avstrerr(err));
-    ctx.avformat = make_raii_ptr(avformat_ctx, avformat_close_input);
+    auto avformat_ptr = make_raii_ptr(avformat_ctx, avformat_close_input);
 
-    err = avformat_find_stream_info(ctx.avformat.get(), NULL);
+    err = avformat_find_stream_info(avformat_ctx, NULL);
     if (err < 0) return MakeError(avstrerr(err));
 
     AVCodec* codec{};
-    auto stream_id = av_find_best_stream(ctx.avformat.get(), AVMEDIA_TYPE_VIDEO, -1, -1, &codec, 0);
+    auto stream_id = av_find_best_stream(avformat_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &codec, 0);
     if (stream_id < 0) return MakeError(avstrerr(stream_id));
-    ctx.stream_id = stream_id;
-    auto stream = ctx.avformat->streams[stream_id];
 
     auto avcodec_ctx = avcodec_alloc_context3(codec);
     if (!avcodec_ctx) return MakeError("Failed to allocate AVCodecContext");
-    ctx.avcodec = make_raii_ptr(avcodec_ctx, avcodec_free_context);
+    auto avcodec_ptr = make_raii_ptr(avcodec_ctx, avcodec_free_context);
 
-    err = avcodec_parameters_to_context(ctx.avcodec.get(), stream->codecpar);
+    err = avcodec_parameters_to_context(avcodec_ctx, avformat_ctx->streams[stream_id]->codecpar);
     if (err < 0) return MakeError(avstrerr(err));
-    err = avcodec_open2(ctx.avcodec.get(), codec, NULL);
+    err = avcodec_open2(avcodec_ctx, codec, NULL);
     if (err < 0) return MakeError(avstrerr(err));
 
-    return VideoDecoder(std::move(ctx));
+    return VideoDecoder({
+        std::move(avformat_ptr), std::move(avcodec_ptr), stream_id
+    });
 }
 
 VideoDecoder::VideoDecoder(StreamDecoderContext&& context) 
 : context(std::move(context))
-, packet(make_raii_ptr(av_packet_alloc(), av_packet_free))
-, frame(make_raii_ptr(av_frame_alloc(), av_frame_free))
+, avpacket(make_raii_ptr(av_packet_alloc(), av_packet_free))
+, avframe(make_raii_ptr(av_frame_alloc(), av_frame_free))
 {}
 
-auto VideoDecoder::NextFrame() -> expected<AVFrame*> {
+auto VideoDecoder::NextFrame() -> expected<Frame> {
     if (!HasFrames()) return make_unexpected_str("No frames left");
 
     for (;;) {
         // pkt->pts, pkt->dts and pkt->duration are always set to correct values in AVStream.time_base units
         // (and guessed if the format cannot provide them). pkt->pts can be AV_NOPTS_VALUE if the video format
         // has B-frames, so it is better to rely on pkt->dts if you do not decompress the payload.
-        auto ret = av_read_frame(context.avformat.get(), packet.get());
+        auto ret = av_read_frame(context.avformat(), avpacket.get());
         if (ret < 0 && ret != AVERROR_EOF) return make_unexpected_str(avstrerr(ret));
 
         // make sure unref will be called on packet
-        std::unique_ptr<AVPacket, void(*)(AVPacket*)> packet_unref_guard {packet.get(), av_packet_unref};
+        std::unique_ptr<AVPacket, void(*)(AVPacket*)> packet_unref_guard {avpacket.get(), av_packet_unref};
         
         if (ret == AVERROR_EOF) { // reached the end of file
             finished = true;
             return make_unexpected_str("No frames left");
         }
 
-        if (packet->stream_index == context.stream_id) {
+        if (avpacket->stream_index == context.avstream()->index) {
             // for video streams 1 packet == 1 frame
-            int ret = avcodec_send_packet(context.avcodec.get(), packet.get());
+            int ret = avcodec_send_packet(context.avcodec(), avpacket.get());
             if (ret < 0) return make_unexpected_str(avstrerr(ret));
-            ret = avcodec_receive_frame(context.avcodec.get(), frame.get());
+            ret = avcodec_receive_frame(context.avcodec(), avframe.get());
             if (ret < 0 && ret != AVERROR(EAGAIN)) return make_unexpected_str(avstrerr(ret));
             if (ret == AVERROR(EAGAIN)) {
                 continue; // read frame again
             }
 
-            return frame.get();
+            Frame frame{
+                avframe.get(),
+                chrono_ms{},
+                chrono_ms{}
+            };
+            return frame;
         }
     }
     assert(false);
@@ -93,8 +97,8 @@ auto VideoDecoder::NextFrame() -> expected<AVFrame*> {
 
 auto VideoDecoder::Reset() -> expected<void> {
     finished = false;
-    avcodec_flush_buffers(context.avcodec.get());
-    auto ret = av_seek_frame(context.avformat.get(), context.stream_id, 0, AVSEEK_FLAG_BACKWARD);
+    avcodec_flush_buffers(context.avcodec());
+    auto ret = av_seek_frame(context.avformat(), context.avstream()->index, 0, AVSEEK_FLAG_BACKWARD);
     if (ret < 0) return make_unexpected_str(avstrerr(ret));
     return {};
 }
