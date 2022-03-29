@@ -6,6 +6,7 @@
 #include <filesystem>
 
 using namespace ffmpeg_decoder;
+using namespace std::literals::chrono_literals;
 
 static auto test_path = std::filesystem::path("assets/test_4x2_16f_red.mp4");
 
@@ -67,7 +68,7 @@ TEST_CASE("VideoDecoder provides correct stream info", "[ffmpeg_decoder]") {
     REQUIRE(decoder->frames() == 16);
 }
 
-TEST_CASE("VideoDecoder decodes frames", "[ffmpeg_decoder]") {
+TEST_CASE("VideoDecoder decodes frame", "[ffmpeg_decoder]") {
     auto decoder = FileLoader(test_path).VideoStreamDecoder();
     REQUIRE(decoder->HasFrames());
     auto frame = decoder->NextFrame();
@@ -86,13 +87,20 @@ void CheckFrameContainsRed(AVFrame* frame) {
     REQUIRE(abs(v - 240) <= 1);
 }
 
+void CheckFrame25Fps(VideoDecoder::Frame& frame, int frame_number) {
+    const auto ms_per_frame = 1000ms/25;
+    CheckFrameContainsRed(frame.avframe);
+    REQUIRE(frame.start_time == frame_number*ms_per_frame);
+    REQUIRE(frame.end_time == (frame_number + 1)*ms_per_frame);
+}
+
 TEST_CASE("VideoDecoder decodes all frames correctly", "[ffmpeg_decoder]") {
     auto decoder = FileLoader(test_path).VideoStreamDecoder();
     auto frame_count = 0;
     while (decoder->HasFrames()) {
         if (auto frame = decoder->NextFrame()) {
+            CheckFrame25Fps(*frame, frame_count);
             ++frame_count;
-            CheckFrameContainsRed(frame->avframe);
         }
     }
     REQUIRE(frame_count == 16);
@@ -112,19 +120,20 @@ TEST_CASE("VideoDecoder can restart after decoding finishes", "[ffmpeg_decoder]"
     REQUIRE(decoder->HasFrames());
     auto frame = decoder->NextFrame();
     REQUIRE(frame);
-    CheckFrameContainsRed(frame->avframe);
+    CheckFrame25Fps(*frame, 0);
+    REQUIRE(frame->start_time == 0ms);
+    REQUIRE(frame->end_time == 40ms);
 }
 
 TEST_CASE("VideoDecoder can restart multiple times", "[ffmpeg_decoder]") {
     auto decoder = FileLoader(test_path).VideoStreamDecoder();
     int repetitions = 5;
     while (repetitions--) {
-        int frames = 9;
-        while (frames--) {
+        for (int f = 0; f < 9; ++f) {
             REQUIRE(decoder->HasFrames());
             auto frame = decoder->NextFrame();
             REQUIRE(frame);
-            CheckFrameContainsRed(frame->avframe);
+            CheckFrame25Fps(*frame, f);
         }
         REQUIRE(decoder->Reset());
     }

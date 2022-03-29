@@ -59,7 +59,6 @@ public:
     auto frames() { return context.avstream()->nb_frames; }
 
     bool HasFrames() const { return !finished; }
-    //TODO: VideoFrame: add start_time, end_time, duration?, format?, w/h?
     // Returned frame data is valid until next call to NextFrame 
     auto NextFrame() -> expected<Frame>;
     auto Reset() -> expected<void>;

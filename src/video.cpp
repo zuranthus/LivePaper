@@ -83,12 +83,15 @@ auto VideoDecoder::NextFrame() -> expected<Frame> {
                 continue; // read frame again
             }
 
-            Frame frame{
+            auto chrono_ms_k = av_q2d(context.avstream()->time_base)*1000;
+            chrono_ms start_time(static_cast<long long>(avframe->best_effort_timestamp*chrono_ms_k));
+            chrono_ms end_time(static_cast<long long>((
+                avframe->best_effort_timestamp + avframe->pkt_duration)*chrono_ms_k));
+            return Frame{
                 avframe.get(),
-                chrono_ms{},
-                chrono_ms{}
+                start_time,
+                end_time
             };
-            return frame;
         }
     }
     assert(false);
