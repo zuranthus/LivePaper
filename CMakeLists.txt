@@ -22,10 +22,12 @@ target_link_libraries(lp-lib PUBLIC tl::expected PRIVATE FFmpeg::FFmpeg)
 add_executable(lp-exe src/main.cpp)
 target_link_libraries(lp-exe lp-lib)
 
-add_executable(lp-test tests/test.cpp)
-find_package(Catch2 CONFIG REQUIRED)
-target_link_libraries(lp-test Catch2::Catch2 lp-lib)
+add_subdirectory(tests)
 
-include(CTest)
-include(Catch)
-catch_discover_tests(lp-test WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+#add_executable(lp-test tests/test.cpp tests/unexpected.cpp)
+#find_package(Catch2 CONFIG REQUIRED)
+#target_link_libraries(lp-test Catch2::Catch2 lp-lib)
+
+#include(CTest)
+#include(Catch)
+#catch_discover_tests(lp-test WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
