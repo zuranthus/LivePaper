@@ -5,6 +5,7 @@
     "dependencies": [
         "ffmpeg",
         "tl-expected",
-        "catch2"
+        "catch2",
+        "ms-gsl"
     ]
 }

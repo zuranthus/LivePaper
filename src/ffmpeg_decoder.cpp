@@ -1,4 +1,4 @@
-#include "video.h"
+#include "ffmpeg_decoder.h"
 #include <assert.h>
 
 namespace ffmpeg_decoder {
@@ -22,7 +22,6 @@ auto FileLoader::MakeError(std::string_view message) const {
 }
 
 auto FileLoader::VideoStreamDecoder() -> expected<VideoDecoder> {
-
     AVFormatContext* avformat_ctx{};
     auto err = avformat_open_input(&avformat_ctx, std::bit_cast<const char*>(path.u8string().c_str()), NULL, NULL);
     if (err < 0) return MakeError(avstrerr(err));

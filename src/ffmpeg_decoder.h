@@ -5,7 +5,6 @@
 #include <chrono>
 #include "expected.h"
 
-
 extern "C" {
     #include <libavformat/avformat.h>
 }
