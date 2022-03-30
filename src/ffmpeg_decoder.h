@@ -9,6 +9,8 @@ extern "C" {
     #include <libavformat/avformat.h>
 }
 
+using namespace std::chrono_literals;
+
 namespace ffmpeg_decoder {
 
 class VideoDecoder;
@@ -45,9 +47,9 @@ public:
     using chrono_ms = std::chrono::milliseconds;
 
     struct Frame {
-        AVFrame* avframe;
-        chrono_ms start_time;
-        chrono_ms end_time;
+        AVFrame* avframe{};
+        chrono_ms start_time{-1ms};
+        chrono_ms end_time{-1ms};
         auto width() { return avframe->width; }
         auto height() { return avframe->height; }
     };
