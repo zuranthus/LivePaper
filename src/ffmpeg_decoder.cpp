@@ -87,7 +87,7 @@ auto VideoDecoder::NextFrame() -> expected<Frame> {
             chrono_ms end_time(static_cast<long long>((
                 avframe->best_effort_timestamp + avframe->pkt_duration)*chrono_ms_k));
             return Frame{
-                avframe.get(),
+                make_raii_ptr(av_frame_clone(avframe.get()), av_frame_free),
                 start_time,
                 end_time
             };

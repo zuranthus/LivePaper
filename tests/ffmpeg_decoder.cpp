@@ -4,15 +4,17 @@
 
 #include <ffmpeg_decoder.h>
 
+
 using namespace ffmpeg_decoder;
 using namespace std::literals::chrono_literals;
 
 static auto test_path = std::filesystem::path("assets/test_4x2_16f_red.mp4");
 
+//TODO check for memory leaks in tests
 namespace Catch {
     template<typename T>
     struct StringMaker<expected<T>> {
-        static std::string convert( expected<T> const& value ) {
+        static std::string convert(const expected<T>& value) {
             return value 
                 ? StringMaker<decltype(value.value())>::convert(value.value())
                 : value.error();
@@ -20,10 +22,8 @@ namespace Catch {
     };
     template<>
     struct StringMaker<expected<void>> {
-        static std::string convert( expected<void> const& value ) {
-            return value 
-                ? "void"
-                : value.error();
+        static std::string convert(const expected<void>& value) {
+            return value ? "void" : value.error();
         }
     };
 }
@@ -63,10 +63,10 @@ TEST_CASE("VideoDecoder decodes frame", "[ffmpeg_decoder]") {
     REQUIRE(frame);
 }
 
-void CheckFrameContainsRed(AVFrame* frame) {
-    auto y = frame->data[0][0];
-    auto u = frame->data[1][0];
-    auto v = frame->data[2][0];
+void CheckFrameContainsRed(AVFrame& frame) {
+    auto y = frame.data[0][0];
+    auto u = frame.data[1][0];
+    auto v = frame.data[2][0];
     // check that the frame contains red color
     // (255, 0, 0)_rgb is approximately (81, 90, 240)_yuv
     //TODO: check the whole frame instead of 1 pixel
@@ -77,7 +77,7 @@ void CheckFrameContainsRed(AVFrame* frame) {
 
 void CheckFrame25Fps(VideoDecoder::Frame& frame, int frame_number) {
     const auto ms_per_frame = 1000ms/25;
-    CheckFrameContainsRed(frame.avframe);
+    CheckFrameContainsRed(*frame.avframe);
     REQUIRE(frame.start_time == frame_number*ms_per_frame);
     REQUIRE(frame.end_time == (frame_number + 1)*ms_per_frame);
 }
