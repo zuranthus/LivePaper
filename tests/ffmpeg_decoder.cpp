@@ -126,3 +126,9 @@ TEST_CASE("VideoDecoder can restart multiple times", "[ffmpeg_decoder]") {
         REQUIRE(decoder->Reset());
     }
 }
+
+TEST_CASE("VideoDecoder calculates duration", "[ffmpeg_decoder]") {
+    auto decoder = FileLoader(test_path).VideoStreamDecoder();
+    auto duration = decoder->CalculateDuration();
+    REQUIRE(duration == 640ms);
+}

@@ -45,6 +45,8 @@ class VideoDecoder {
     raii_ptr<AVPacket> avpacket;
     raii_ptr<AVFrame> avframe;
     bool finished {false};
+
+    auto NextAVPacket() -> expected<std::unique_ptr<AVPacket, void(*)(AVPacket*)>>;
 public:
     using chrono_ms = std::chrono::milliseconds;
 
@@ -64,6 +66,7 @@ public:
     bool HasFrames() const { return !finished; }
     auto NextFrame() -> expected<Frame>;
     auto Reset() -> expected<void>;
+    auto CalculateDuration() -> expected<chrono_ms>;
 };
 
 }

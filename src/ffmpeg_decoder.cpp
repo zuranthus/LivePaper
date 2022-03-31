@@ -54,6 +54,21 @@ VideoDecoder::VideoDecoder(StreamDecoderContext&& context)
 , avframe(make_raii_ptr(av_frame_alloc(), av_frame_free))
 {}
 
+// TODO move stream id check and begin_time/end_time calculation here
+// Returned unique_ptr calls av_packet_unref on this->avpacket on destruction
+auto VideoDecoder::NextAVPacket() -> expected<std::unique_ptr<AVPacket, void(*)(AVPacket*)>> {
+    auto ret = av_read_frame(context.avformat(), avpacket.get());
+    if (ret < 0 && ret != AVERROR_EOF) return make_unexpected_str(avstrerr(ret));
+    // make sure unref will be called on packet
+    std::unique_ptr<AVPacket, void(*)(AVPacket*)> packet_unref_guard {avpacket.get(), av_packet_unref};
+    // reached the end of file
+    if (ret == AVERROR_EOF) {
+        finished = true;
+        return make_unexpected_str("No frames left");
+    }
+    return packet_unref_guard;
+}
+
 auto VideoDecoder::NextFrame() -> expected<Frame> {
     if (!HasFrames()) return make_unexpected_str("No frames left");
 
@@ -61,20 +76,12 @@ auto VideoDecoder::NextFrame() -> expected<Frame> {
         // pkt->pts, pkt->dts and pkt->duration are always set to correct values in AVStream.time_base units
         // (and guessed if the format cannot provide them). pkt->pts can be AV_NOPTS_VALUE if the video format
         // has B-frames, so it is better to rely on pkt->dts if you do not decompress the payload.
-        auto ret = av_read_frame(context.avformat(), avpacket.get());
-        if (ret < 0 && ret != AVERROR_EOF) return make_unexpected_str(avstrerr(ret));
-
-        // make sure unref will be called on packet
-        std::unique_ptr<AVPacket, void(*)(AVPacket*)> packet_unref_guard {avpacket.get(), av_packet_unref};
-        
-        if (ret == AVERROR_EOF) { // reached the end of file
-            finished = true;
-            return make_unexpected_str("No frames left");
-        }
+        auto ret = NextAVPacket();
+        if (!ret) return tl::unexpected(ret.error());
 
         if (avpacket->stream_index == context.avstream()->index) {
             // for video streams 1 packet == 1 frame
-            int ret = avcodec_send_packet(context.avcodec(), avpacket.get());
+            auto ret = avcodec_send_packet(context.avcodec(), avpacket.get());
             if (ret < 0) return make_unexpected_str(avstrerr(ret));
             ret = avcodec_receive_frame(context.avcodec(), avframe.get());
             if (ret < 0 && ret != AVERROR(EAGAIN)) return make_unexpected_str(avstrerr(ret));
@@ -83,8 +90,8 @@ auto VideoDecoder::NextFrame() -> expected<Frame> {
             }
 
             auto chrono_ms_k = av_q2d(context.avstream()->time_base)*1000;
-            chrono_ms start_time(static_cast<long long>(avframe->best_effort_timestamp*chrono_ms_k));
-            chrono_ms end_time(static_cast<long long>((
+            chrono_ms start_time(static_cast<chrono_ms::rep>(avframe->best_effort_timestamp*chrono_ms_k));
+            chrono_ms end_time(static_cast<chrono_ms::rep>((
                 avframe->best_effort_timestamp + avframe->pkt_duration)*chrono_ms_k));
             return Frame{
                 make_raii_ptr(av_frame_clone(avframe.get()), av_frame_free),
@@ -103,6 +110,30 @@ auto VideoDecoder::Reset() -> expected<void> {
     auto ret = av_seek_frame(context.avformat(), context.avstream()->index, 0, AVSEEK_FLAG_BACKWARD);
     if (ret < 0) return make_unexpected_str(avstrerr(ret));
     return {};
+}
+
+auto VideoDecoder::CalculateDuration() -> expected<chrono_ms> {
+    auto ret = Reset();
+    if (!ret) return tl::unexpected(ret.error());
+
+    auto duration = 0ms;
+    while (true) {
+        auto ret = NextAVPacket();
+        if (!ret) {
+            if (!HasFrames()) break; // end of stream
+            return tl::unexpected(ret.error());
+        }
+        if (avpacket->stream_index == context.avstream()->index) {
+            auto chrono_ms_k = av_q2d(context.avstream()->time_base)*1000;
+            chrono_ms packet_end_time(static_cast<chrono_ms::rep>((
+                avpacket->pts + avpacket->duration)*chrono_ms_k));
+            duration = std::max(duration, packet_end_time);
+        }
+    }
+
+    ret = Reset();
+    if (!ret) return tl::unexpected(ret.error());
+    return duration;
 }
 
 }
