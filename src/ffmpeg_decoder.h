@@ -39,7 +39,8 @@ class VideoDecoder {
     StreamDecoderContext context;
     raii_ptr<AVPacket> avpacket;
     raii_ptr<AVFrame> avframe;
-    bool finished {false};
+    bool finished{false};
+    chrono_ms last_decoded_end_time{0ms};
 public:
     struct Frame {
         raii_ptr<AVFrame> avframe{};
@@ -57,7 +58,10 @@ public:
 
     bool HasFrames() const { return !finished; }
     auto NextFrame() -> expected<Frame>;
+    auto SeekToFrameAt(chrono_ms time) -> expected<Frame>;
     auto Reset() -> expected<void>;
+private:
+    auto DecodeFrame(std::optional<chrono_ms> frame_time = std::nullopt) -> expected<Frame>;
 };
 
 class FileLoader {

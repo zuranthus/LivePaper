@@ -69,7 +69,7 @@ auto CalculateStreamDuration(AVFormatContext* avformat, AVStream* avstream, AVPa
 }
 
 auto FileLoader::MakeError(std::string_view message) const {
-    return make_unexpected_str("{}\nFile: '{}'", message, path.string());
+    return unexpected_str("{}\nFile: '{}'", message, path.string());
 }
 
 auto FileLoader::VideoStreamDecoder() -> expected<VideoDecoder> {
@@ -110,9 +110,29 @@ VideoDecoder::VideoDecoder(StreamDecoderContext&& context)
 {}
 
 auto VideoDecoder::NextFrame() -> expected<Frame> {
-    if (!HasFrames()) return make_unexpected_str("No frames left");
+    return DecodeFrame();
+}
 
-    for (;;) {
+auto VideoDecoder::SeekToFrameAt(chrono_ms time) -> expected<Frame> {
+    // start from beginning if decoding already passed time
+    if (time < last_decoded_end_time) {
+        auto ret = Reset();
+        if (!ret) return tl::unexpected(ret.error());
+    }
+    return DecodeFrame(time);
+}
+
+auto VideoDecoder::Reset() -> expected<void> {
+    auto ret = ResetStreamDecoding(context.avformat(), context.avcodec(), context.avstream());
+    if (!ret) return unexpected_averror(ret.error());
+    finished = false;
+    last_decoded_end_time = 0ms;
+    return {};
+}
+
+auto VideoDecoder::DecodeFrame(std::optional<chrono_ms> frame_time) -> expected<Frame> {
+    if (!HasFrames()) return unexpected_str("No frames left");
+    while (true) {
         auto packet_info = NextAVPacket(context.avformat(), context.avstream(), avpacket.get());
         if (!packet_info) {
             auto error = packet_info.error();
@@ -120,9 +140,19 @@ auto VideoDecoder::NextFrame() -> expected<Frame> {
             if (error == AVERROR_EOF) {
                 // end of stream
                 finished = true;
-                return make_unexpected_str("No frames left");
+                return unexpected_str("No frames left");
             }
             return unexpected_averror(error);
+        }
+        last_decoded_end_time = packet_info->end_time;
+
+        // if frame_time is provided, return only frame that contains frame_time
+        if (frame_time) {
+            if (frame_time >= packet_info->end_time) continue;
+            if (frame_time < packet_info->start_time) {
+                return unexpected_str("Can't find frame with time {}, closest found is [{}, {})",
+                    frame_time.value(), packet_info->start_time, packet_info->end_time);
+            }
         }
 
         auto avret = avcodec_send_packet(context.avcodec(), avpacket.get());
@@ -138,13 +168,6 @@ auto VideoDecoder::NextFrame() -> expected<Frame> {
         };
     }
     assert(false);
-    return make_unexpected_str("Internal error");
-}
-
-auto VideoDecoder::Reset() -> expected<void> {
-    auto ret = ResetStreamDecoding(context.avformat(), context.avcodec(), context.avstream());
-    if (!ret) return unexpected_averror(ret.error());
-    finished = false;
-    return {};
+    return unexpected_str("Internal error");
 }
 }
