@@ -131,3 +131,68 @@ TEST_CASE("VideoDecoder duration is correct", "[ffmpeg_decoder]") {
     auto decoder = FileLoader(test_path).VideoStreamDecoder();
     REQUIRE(decoder->duration() == 640ms);
 }
+
+auto check_seek_frame_func(auto& decoder) {
+    return [&decoder](auto time) {
+        auto frame = decoder->SeekToFrameAt(time);
+        REQUIRE(frame);
+        REQUIRE(time >= frame->start_time);
+        REQUIRE(time < frame->end_time);
+        CheckFrameContainsRed(*frame->avframe);
+        return frame;
+    };
+}
+
+TEST_CASE("VideoDecoder seeks to frame start times", "[ffmpeg_decoder]") {
+    auto decoder = FileLoader(test_path).VideoStreamDecoder();
+    auto time = GENERATE(40ms, 320ms, 600ms);
+    check_seek_frame_func(decoder)(time);
+}
+
+TEST_CASE("VideoDecoder seeks to frame end times", "[ffmpeg_decoder]") {
+    auto decoder = FileLoader(test_path).VideoStreamDecoder();
+    auto time = GENERATE(79ms, 279ms, 639ms);
+    check_seek_frame_func(decoder)(time);
+}
+
+TEST_CASE("VideoDecoder seeks forward", "[ffmpeg_decoder]") {
+    auto decoder = FileLoader(test_path).VideoStreamDecoder();
+    auto check_seek_frame = check_seek_frame_func(decoder);
+    check_seek_frame(100ms);
+    check_seek_frame(200ms);
+    check_seek_frame(639ms);
+}
+
+TEST_CASE("VideoDecoder seeks backward", "[ffmpeg_decoder]") {
+    auto decoder = FileLoader(test_path).VideoStreamDecoder();
+    auto check_seek_frame = check_seek_frame_func(decoder);
+    check_seek_frame(500ms);
+    check_seek_frame(300ms);
+    check_seek_frame(200ms);
+    check_seek_frame(639ms);
+    check_seek_frame(0ms);
+}
+
+TEST_CASE("VideoDecoder reports invalid seek times", "[ffmpeg_decoder]") {
+    auto decoder = FileLoader(test_path).VideoStreamDecoder();
+    auto time = GENERATE(-1ms, -34s, 640ms, 60s);
+    auto frame = decoder->SeekToFrameAt(time);
+    REQUIRE(!frame);
+}
+
+TEST_CASE("VideoDecoder seeks after restart", "[ffmpeg_decoder]") {
+    auto decoder = FileLoader(test_path).VideoStreamDecoder();
+    decoder->SeekToFrameAt(500ms);
+    decoder->Reset();
+    check_seek_frame_func(decoder)(100ms);
+}
+
+TEST_CASE("VideoDecoder seeks and next frame work together", "[ffmpeg_decoder]") {
+    auto decoder = FileLoader(test_path).VideoStreamDecoder();
+    decoder->NextFrame();
+    auto seek_frame = check_seek_frame_func(decoder)(160ms);
+    auto next_frame = decoder->NextFrame();
+    REQUIRE(next_frame);
+    REQUIRE(next_frame->start_time == seek_frame->end_time);
+    CheckFrameContainsRed(*next_frame->avframe);
+}

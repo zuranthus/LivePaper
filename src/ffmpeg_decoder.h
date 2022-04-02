@@ -37,8 +37,6 @@ public:
 
 class VideoDecoder {
     StreamDecoderContext context;
-    raii_ptr<AVPacket> avpacket;
-    raii_ptr<AVFrame> avframe;
     bool finished{false};
     chrono_ms last_decoded_end_time{0ms};
 public:

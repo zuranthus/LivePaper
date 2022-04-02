@@ -20,7 +20,6 @@ auto unexpected_averror(int errnum) {
     return tl::unexpected(avstrerr(errnum));
 }
 
-// Returned unique_ptr calls av_packet_unref on avpacket when destroyed
 struct AVPacketInfo {
     using auto_unref = std::unique_ptr<AVPacket, void(*)(AVPacket*)>;
     auto_unref packet_unref;
@@ -105,8 +104,6 @@ auto FileLoader::VideoStreamDecoder() -> expected<VideoDecoder> {
 
 VideoDecoder::VideoDecoder(StreamDecoderContext&& context) 
 : context(std::move(context))
-, avpacket(make_raii_ptr(av_packet_alloc(), av_packet_free))
-, avframe(make_raii_ptr(av_frame_alloc(), av_frame_free))
 {}
 
 auto VideoDecoder::NextFrame() -> expected<Frame> {
@@ -132,6 +129,12 @@ auto VideoDecoder::Reset() -> expected<void> {
 
 auto VideoDecoder::DecodeFrame(std::optional<chrono_ms> frame_time) -> expected<Frame> {
     if (!HasFrames()) return unexpected_str("No frames left");
+    if (frame_time && (frame_time < 0ms || frame_time >= duration())) {
+        return unexpected_str("Invalid seek frame time: must be within [{}, {}), requested {}", 
+            0ms, duration(), frame_time.value());
+    }
+
+    auto avpacket(make_raii_ptr(av_packet_alloc(), av_packet_free));
     while (true) {
         auto packet_info = NextAVPacket(context.avformat(), context.avstream(), avpacket.get());
         if (!packet_info) {
@@ -146,23 +149,31 @@ auto VideoDecoder::DecodeFrame(std::optional<chrono_ms> frame_time) -> expected<
         }
         last_decoded_end_time = packet_info->end_time;
 
+        bool found_frame = true;
         // if frame_time is provided, return only frame that contains frame_time
         if (frame_time) {
-            if (frame_time >= packet_info->end_time) continue;
+            if (frame_time >= packet_info->end_time) found_frame = false;
             if (frame_time < packet_info->start_time) {
                 return unexpected_str("Can't find frame with time {}, closest found is [{}, {})",
                     frame_time.value(), packet_info->start_time, packet_info->end_time);
             }
         }
 
-        auto avret = avcodec_send_packet(context.avcodec(), avpacket.get());
-        if (avret < 0) return unexpected_averror(avret);
-        avret = avcodec_receive_frame(context.avcodec(), avframe.get());
-        if (avret == AVERROR(EAGAIN)) continue;
-        if (avret < 0) return unexpected_averror(avret);
+        // always decode packet if it contains keyframe
+        // otherwise decode if this packet is the one we need
+        raii_ptr<AVFrame> avframe;
+        if (found_frame || avpacket->flags & AV_PKT_FLAG_KEY) {
+            auto avret = avcodec_send_packet(context.avcodec(), avpacket.get());
+            if (avret < 0) return unexpected_averror(avret);
+            avframe = make_raii_ptr(av_frame_alloc(), av_frame_free);
+            avret = avcodec_receive_frame(context.avcodec(), avframe.get());
+            if (avret == AVERROR(EAGAIN)) continue;
+            if (avret < 0) return unexpected_averror(avret);
+        }
 
+        if (!found_frame) continue;
         return Frame{
-            make_raii_ptr(av_frame_clone(avframe.get()), av_frame_free),
+            std::move(avframe),
             packet_info->start_time,
             packet_info->end_time
         };
