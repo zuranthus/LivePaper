@@ -55,7 +55,7 @@ static bool DecodeNextFrame(AVFrame *frame, double *frame_end_time, struct Video
                 continue; // read frame again
             }
 
-            *frame_end_time = (frame->best_effort_timestamp + frame->pkt_duration)*v->time_base;
+            *frame_end_time = frame->best_effort_timestamp*v->time_base + frame->duration*av_q2d(frame->time_base);
             return true;
         }
         av_packet_unref(&packet);
@@ -69,7 +69,7 @@ struct Video* VideoLoad(const struct Context *ctx) {
         FAIL_WITH("Can't open file '%s'", ctx->file);
     if (avformat_find_stream_info(v->input_ctx, NULL) < 0)
         FAIL_WITH("Can't find stream information");
-    AVCodec *codec = NULL;
+    const AVCodec *codec = NULL;
     v->stream_id = av_find_best_stream(v->input_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &codec, 0);
     if (v->stream_id < 0) FAIL();
 
@@ -112,7 +112,8 @@ struct Video* VideoLoad(const struct Context *ctx) {
     } else {
         int frame_num = (int)stream->nb_frames;
         if (frame_num > 16 || frame_num <= 0) FAIL_WITH("can't cache the file with %i frames (16 frames is the maximum allowed)", frame_num);
-        struct CacheEntry *cache = av_mallocz_array(frame_num, sizeof(struct CacheEntry));
+        struct CacheEntry *cache = av_malloc_array(frame_num, sizeof(struct CacheEntry));
+        memset(cache, 0, frame_num*sizeof(struct CacheEntry));
         void *frame_rgb = av_malloc(3*w*h);
         for (int i = 0;; ++i) {
             AVFrame frame = {0};
@@ -181,9 +182,13 @@ void VideoUpdate(double delta_sec, struct Video *v, const struct Context *ctx) {
                 void *pix;
                 int pitch;
                 SDL_LockTexture(v->tex, NULL, &pix, &pitch);
-                sws_scale(v->sws_ctx, (uint8_t const * const *)frame.data,
-                    frame.linesize, 0, v->decoder_ctx->height,
-                    (uint8_t* []){pix, NULL, NULL}, (int [] ){pitch});
+                sws_scale(v->sws_ctx,
+                    (uint8_t const * const *)frame.data,
+                    frame.linesize,
+                    0,
+                    v->decoder_ctx->height,
+                    (uint8_t* []){pix, NULL, NULL},
+                    (int [] ){pitch});
                 SDL_UnlockTexture(v->tex);
                 found_frame = true;
             }
@@ -205,7 +210,7 @@ void VideoClear(struct Video *v, const struct Context *ctx) {
         av_free(v->cache);
     }
     sws_freeContext(v->sws_ctx);
-    avcodec_close(v->decoder_ctx);
+    avcodec_free_context(&v->decoder_ctx);
     avformat_close_input(&v->input_ctx);
     memset(v, 0, sizeof(*v));
     av_free(v);

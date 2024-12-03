@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,7 +26,7 @@ void ClearContext(struct Context *context) {
     PlatformCleanup(context);
     SDL_Quit();
     if (context->file) free(context->file);
-    memset(&context, 0, sizeof(context));
+    memset(context, 0, sizeof(*context));
 }
 
 void ProcessArguments(int argc, char *argv[], struct Context *context) {
