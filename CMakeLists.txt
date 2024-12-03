@@ -82,7 +82,7 @@ endif()
 ##### argtable
 FetchContent_Declare(
     argtable
-    URL https://github.com/argtable/argtable3/releases/download/v3.2.1.52f24e5/argtable-v3.2.1.52f24e5-amalgamation.tar.gz
+    URL https://github.com/argtable/argtable3/releases/download/v3.2.2.f25c624/argtable-v3.2.2.f25c624-amalgamation.tar.gz
 )
 FetchContent_GetProperties(argtable)
 if(NOT argtable_POPULATED)
