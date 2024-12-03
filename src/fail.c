@@ -31,3 +31,18 @@ void MessageAndQuit(int line, const char *file, const char *message, ...) {
     
     exit(1);
 }
+
+void Trace(int line, const char *file, const char *message, ...) {
+    va_list args;
+    va_start(args, message);
+
+    char buf[4096] = {0};
+    int pos = 0;
+    pos += sprintf(buf + pos, "Trace %s:%i", file, line);
+    if (message) {
+        pos += sprintf(buf + pos, ": ");
+        pos += vsprintf(buf + pos, message, args);
+    }
+    va_end(args);
+    puts(buf);
+}

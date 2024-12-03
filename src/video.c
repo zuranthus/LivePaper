@@ -63,6 +63,7 @@ static bool DecodeNextFrame(AVFrame *frame, double *frame_end_time, struct Video
 }
 
 struct Video* VideoLoad(const struct Context *ctx) {
+    TRACE("loading");
     struct Video *v = av_mallocz(sizeof(struct Video));
 
     if (avformat_open_input(&v->input_ctx, ctx->file, NULL, NULL) != 0)
@@ -146,13 +147,17 @@ static void ResetVideo(struct Video *v) {
 }
 
 void VideoUpdate(double delta_sec, struct Video *v, const struct Context *ctx) {
+    TRACE("video update");
     assert(v);
     assert(v->input_ctx);
 
     v->time += delta_sec;
+    v->time = v->next_frame_time;
     if (v->time < v->next_frame_time) { // previously rendered frame is still valid, nothing to do here
         return;
     }
+
+    TRACE("getting next frame");
 
     SDL_Texture *texture_to_render = v->tex;
     if (ctx->cache) {
@@ -169,6 +174,7 @@ void VideoUpdate(double delta_sec, struct Video *v, const struct Context *ctx) {
             AVFrame frame = {0};
             double frame_end_time = 0.0;
             if (!DecodeNextFrame(&frame, &frame_end_time, v)) {
+                TRACE("no frames left, restarting");
                 // no frames left (EOF), restart the video
                 ResetVideo(v);
                 v->time = 0.0;
@@ -177,6 +183,7 @@ void VideoUpdate(double delta_sec, struct Video *v, const struct Context *ctx) {
             }
             if (frame_end_time < v->next_frame_time) FAIL(); // something wrong with frame order
             if (frame_end_time > v->time) {
+                TRACE("decoding frame");
                 v->next_frame_time = frame_end_time;
 
                 void *pix;
