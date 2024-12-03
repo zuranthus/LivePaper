@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 project(live-paper VERSION 0.0.0)
+cmake_policy(SET CMP0135 NEW)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -15,7 +16,7 @@ else()
     )
     FetchContent_GetProperties(FFmpeg)
     if(NOT ffmpeg_POPULATED)
-        FetchContent_Populate(FFmpeg)
+        FetchContent_MakeAvailable(FFmpeg)
         add_library(FFmpeg::FFmpeg INTERFACE IMPORTED)
         set_target_properties(FFmpeg::FFmpeg PROPERTIES
             INTERFACE_LINK_DIRECTORIES "${ffmpeg_SOURCE_DIR}/lib"
@@ -45,7 +46,7 @@ else()
     )
     FetchContent_GetProperties(SDL2)
     if(NOT sdl2_POPULATED)
-        FetchContent_Populate(SDL2)
+        FetchContent_MakeAvailable(SDL2)
         add_library(SDL2::SDL2 SHARED IMPORTED)
         set_target_properties(SDL2::SDL2 PROPERTIES
             IMPORTED_LOCATION "${sdl2_SOURCE_DIR}/lib/x64/SDL2.dll"
@@ -69,7 +70,7 @@ if(WIN32)
     )
     FetchContent_GetProperties(tray)
     if(NOT tray_POPULATED)
-        FetchContent_Populate(tray)
+        FetchContent_MakeAvailable(tray)
         add_library(tray::tray INTERFACE IMPORTED)
         set_target_properties(tray::tray PROPERTIES
             INTERFACE_INCLUDE_DIRECTORIES "${tray_SOURCE_DIR}"
@@ -85,7 +86,7 @@ FetchContent_Declare(
 )
 FetchContent_GetProperties(argtable)
 if(NOT argtable_POPULATED)
-    FetchContent_Populate(argtable)
+    FetchContent_MakeAvailable(argtable)
     add_library(argtable::argtable INTERFACE IMPORTED)
     set_target_properties(argtable::argtable PROPERTIES
         INTERFACE_INCLUDE_DIRECTORIES "${argtable_SOURCE_DIR}/"
