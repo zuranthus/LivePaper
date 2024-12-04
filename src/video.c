@@ -31,9 +31,6 @@ struct Video {
 
     SDL_Texture *tex;
     SDL_Rect tex_dest;
-
-    struct CacheEntry *cache;
-    int cache_size;
 };
 
 static bool DecodeNextFrame(AVFrame *frame, double *frame_end_time, struct Video *v) {
@@ -64,8 +61,7 @@ static bool DecodeNextFrame(AVFrame *frame, double *frame_end_time, struct Video
     }
 }
 
-struct Video* VideoLoad(const struct Context *ctx) {
-    TRACE("loading");
+struct Video *VideoLoad(const struct Context *ctx) {
     struct Video *v = av_mallocz(sizeof(struct Video));
 
     if (avformat_open_input(&v->input_ctx, ctx->file, NULL, NULL) != 0)
@@ -116,36 +112,8 @@ struct Video* VideoLoad(const struct Context *ctx) {
         .h = target_h
     };
     v->tex_dest = dest_rect;
-
-    if (!ctx->cache) {
-        v->tex = SDL_CreateTexture(ctx->renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, w, h);
-        if (!v->tex) FAIL_WITH("can't create SDL texture %i x %i pix", w, h);
-    } else {
-        int frame_num = (int)stream->nb_frames;
-        if (frame_num > 16 || frame_num <= 0) FAIL_WITH("can't cache the file with %i frames (16 frames is the maximum allowed)", frame_num);
-        struct CacheEntry *cache = av_malloc_array(frame_num, sizeof(struct CacheEntry));
-        memset(cache, 0, frame_num*sizeof(struct CacheEntry));
-        for (int i = 0;; ++i) {
-            AVFrame frame = {0};
-            double frame_end_time = 0.0;
-            if (!DecodeNextFrame(&frame, &frame_end_time, v)) break;
-            if (i >= frame_num) FAIL();
-            if (i && frame_end_time < cache[i-1].frame_end_time) FAIL(); // something wrong with frame order
-            struct CacheEntry e = { 
-                .tex = SDL_CreateTexture(ctx->renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STATIC, w, h), 
-                .frame_end_time = frame_end_time
-            };
-            if (!e.tex) FAIL_WITH("can't create SDL texture %i x %i pix", w, h);
-            sws_scale(v->sws_ctx, (uint8_t const *const *)frame.data,
-                      frame.linesize, 0, v->decoder_ctx->height,
-                      v->sws_frame->data, v->sws_frame->linesize);
-            if (SDL_UpdateTexture(e.tex, NULL, v->sws_frame->data[0], v->sws_frame->linesize[0]) != 0)
-                FAIL();
-            cache[i] = e;
-        }
-        v->cache = cache;
-        v->cache_size = frame_num;
-    }
+    v->tex = SDL_CreateTexture(ctx->renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, w, h);
+    if (!v->tex) FAIL_WITH("can't create SDL texture %i x %i pix", w, h);
 
     return v;
 }
@@ -156,80 +124,51 @@ static void ResetVideo(struct Video *v) {
 }
 
 void VideoUpdate(double delta_sec, struct Video *v, const struct Context *ctx) {
-    TRACE("video update");
     assert(v);
     assert(v->input_ctx);
 
     v->time += delta_sec;
-    // v->time = v->next_frame_time;
-    if (v->time < v->next_frame_time) { // previously rendered frame is still valid, nothing to do here
+    if (v->time < v->next_frame_time) {  // previously rendered frame is still valid, nothing to do here
         return;
     }
 
-    TRACE("getting next frame");
-
-    SDL_Texture *texture_to_render = v->tex;
-    if (ctx->cache) {
-        double final_end_time = v->cache[v->cache_size - 1].frame_end_time;
-        if (v->time >= final_end_time) v->time = 0.0;
-        for (int i = 0; i < v->cache_size; ++i) {
-            if (v->time < v->cache[i].frame_end_time) {
-                texture_to_render = v->cache[i].tex;
-                break;
-            }
+    for (bool found_frame = false; !found_frame;) {
+        AVFrame frame = {0};
+        double frame_end_time = 0.0;
+        if (!DecodeNextFrame(&frame, &frame_end_time, v)) {
+            // no frames left (EOF), restart the video
+            ResetVideo(v);
+            v->time = 0.0;
+            v->next_frame_time = -1.0;
+            continue;
         }
-    } else {
-        for (bool found_frame = false; !found_frame;) {
-            AVFrame frame = {0};
-            double frame_end_time = 0.0;
-            if (!DecodeNextFrame(&frame, &frame_end_time, v)) {
-                TRACE("no frames left, restarting");
-                // no frames left (EOF), restart the video
-                ResetVideo(v);
-                v->time = 0.0;
-                v->next_frame_time = -1.0;
-                continue;
-            }
-            if (frame_end_time < v->next_frame_time) FAIL(); // something wrong with frame order
-            if (frame_end_time > v->time) {
-                TRACE("decoding frame");
-                found_frame = true;
-                v->next_frame_time = frame_end_time;
+        if (frame_end_time < v->next_frame_time) FAIL();  // something wrong with frame order
+        if (frame_end_time > v->time) {
+            found_frame = true;
+            v->next_frame_time = frame_end_time;
 
-                sws_scale(v->sws_ctx,
-                          (uint8_t const *const *)frame.data,
-                          frame.linesize,
-                          0,
-                          v->decoder_ctx->height,
-                          v->sws_frame->data,
-                          v->sws_frame->linesize);
+            sws_scale(v->sws_ctx, (uint8_t const *const *)frame.data, frame.linesize, 0, v->decoder_ctx->height,
+                      v->sws_frame->data, v->sws_frame->linesize);
 
-                void *pix;
-                int pitch;
-                SDL_LockTexture(v->tex, NULL, &pix, &pitch);
-                for (int y = 0; y < v->sws_frame->height; ++y)
-                    memcpy(pix + y*pitch,
-                           v->sws_frame->data[0] + y*v->sws_frame->linesize[0],
-                           v->sws_frame->width*3);
-                SDL_UnlockTexture(v->tex);
-            }
-
-            av_frame_unref(&frame);
+            void *pix;
+            int pitch;
+            SDL_LockTexture(v->tex, NULL, &pix, &pitch);
+            for (int y = 0; y < v->sws_frame->height; ++y)
+                memcpy(pix + y * pitch, v->sws_frame->data[0] + y * v->sws_frame->linesize[0], v->sws_frame->width * 3);
+            SDL_UnlockTexture(v->tex);
         }
+
+        av_frame_unref(&frame);
     }
 
     SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 0, 255);
     SDL_RenderClear(ctx->renderer);
-    SDL_RenderCopy(ctx->renderer, texture_to_render, NULL, &v->tex_dest);
+    SDL_RenderCopy(ctx->renderer, v->tex, NULL, &v->tex_dest);
     SDL_RenderPresent(ctx->renderer);
 }
 
 void VideoClear(struct Video *v, const struct Context *ctx) {
     if (v->tex) SDL_DestroyTexture(v->tex);
-    if (v->cache) {
-        for (int i = 0; i < v->cache_size; ++i) SDL_DestroyTexture(v->cache[i].tex);
-        av_free(v->cache);
-    }
     av_frame_free(&v->sws_frame);
     sws_freeContext(v->sws_ctx);
     avcodec_free_context(&v->decoder_ctx);
