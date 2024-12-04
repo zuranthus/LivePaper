@@ -1,13 +1,17 @@
 cmake_minimum_required(VERSION 3.14)
 project(live-paper VERSION 0.0.0)
 
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24.0)
+    cmake_policy(SET CMP0135 NEW)
+endif()
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(FetchContent)
 
-##### FFmpeg
+# FFmpeg
 if(NOT MSVC)
-    find_package(FFmpeg REQUIRED COMPONENTS AVCODEC AVFORMAT AVUTIL SWSCALE)
+    find_package(FFmpeg 6.0 REQUIRED COMPONENTS AVCODEC AVFORMAT AVUTIL SWSCALE)
 else()
     FetchContent_Declare(
         FFmpeg
@@ -15,7 +19,7 @@ else()
     )
     FetchContent_GetProperties(FFmpeg)
     if(NOT ffmpeg_POPULATED)
-        FetchContent_Populate(FFmpeg)
+        FetchContent_MakeAvailable(FFmpeg)
         add_library(FFmpeg::FFmpeg INTERFACE IMPORTED)
         set_target_properties(FFmpeg::FFmpeg PROPERTIES
             INTERFACE_LINK_DIRECTORIES "${ffmpeg_SOURCE_DIR}/lib"
@@ -28,7 +32,7 @@ else()
 endif()
 
 
-##### SDL2
+# SDL2
 if(NOT MSVC)
     find_package(SDL2 REQUIRED)
     if (NOT TARGET SDL2::SDL2)
@@ -45,7 +49,7 @@ else()
     )
     FetchContent_GetProperties(SDL2)
     if(NOT sdl2_POPULATED)
-        FetchContent_Populate(SDL2)
+        FetchContent_MakeAvailable(SDL2)
         add_library(SDL2::SDL2 SHARED IMPORTED)
         set_target_properties(SDL2::SDL2 PROPERTIES
             IMPORTED_LOCATION "${sdl2_SOURCE_DIR}/lib/x64/SDL2.dll"
@@ -60,7 +64,7 @@ else()
 endif()
 
 
-##### tray (on windows only)
+# tray (on windows only)
 if(WIN32)
     FetchContent_Declare(
         tray
@@ -69,7 +73,7 @@ if(WIN32)
     )
     FetchContent_GetProperties(tray)
     if(NOT tray_POPULATED)
-        FetchContent_Populate(tray)
+        FetchContent_MakeAvailable(tray)
         add_library(tray::tray INTERFACE IMPORTED)
         set_target_properties(tray::tray PROPERTIES
             INTERFACE_INCLUDE_DIRECTORIES "${tray_SOURCE_DIR}"
@@ -78,14 +82,14 @@ if(WIN32)
 endif()
 
 
-##### argtable
+# argtable
 FetchContent_Declare(
     argtable
-    URL https://github.com/argtable/argtable3/releases/download/v3.2.1.52f24e5/argtable-v3.2.1.52f24e5-amalgamation.tar.gz
+    URL https://github.com/argtable/argtable3/releases/download/v3.2.2.f25c624/argtable-v3.2.2.f25c624-amalgamation.tar.gz
 )
 FetchContent_GetProperties(argtable)
 if(NOT argtable_POPULATED)
-    FetchContent_Populate(argtable)
+    FetchContent_MakeAvailable(argtable)
     add_library(argtable::argtable INTERFACE IMPORTED)
     set_target_properties(argtable::argtable PROPERTIES
         INTERFACE_INCLUDE_DIRECTORIES "${argtable_SOURCE_DIR}/"
@@ -93,11 +97,11 @@ if(NOT argtable_POPULATED)
     )
 endif()
 
-
-##### executable
-add_executable(live-paper 
+# executable
+add_executable(live-paper
     $<$<PLATFORM_ID:Windows>:src/platform_windows.c;assets/win.rc>
     $<$<PLATFORM_ID:Linux>:src/platform_linux.c>
+    $<$<PLATFORM_ID:Darwin>:src/platform_macos.c>
     src/main.c src/fail.c src/video.c
 )
 set_target_properties(live-paper PROPERTIES 

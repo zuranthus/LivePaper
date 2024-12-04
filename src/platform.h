@@ -16,7 +16,6 @@ struct Context {
 
     char *file;
     int fit;
-    bool cache;
 };
 
 void PlatformInitGuiMode(struct Context *context);
