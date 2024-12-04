@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.14)
 project(live-paper VERSION 0.0.0)
-cmake_policy(SET CMP0135 NEW)
+
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24.0)
+    cmake_policy(SET CMP0135 NEW)
+endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -8,7 +11,7 @@ include(FetchContent)
 
 ##### FFmpeg
 if(NOT MSVC)
-    find_package(FFmpeg REQUIRED COMPONENTS AVCODEC AVFORMAT AVUTIL SWSCALE)
+    find_package(FFmpeg 6.0 REQUIRED COMPONENTS AVCODEC AVFORMAT AVUTIL SWSCALE)
 else()
     FetchContent_Declare(
         FFmpeg
