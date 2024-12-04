@@ -94,11 +94,11 @@ if(NOT argtable_POPULATED)
     )
 endif()
 
-
-##### executable
-add_executable(live-paper 
+# #### executable
+add_executable(live-paper
     $<$<PLATFORM_ID:Windows>:src/platform_windows.c;assets/win.rc>
     $<$<PLATFORM_ID:Linux>:src/platform_linux.c>
+    $<$<PLATFORM_ID:Darwin>:src/platform_macos.c>
     src/main.c src/fail.c src/video.c
 )
 set_target_properties(live-paper PROPERTIES 
