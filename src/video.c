@@ -150,7 +150,7 @@ void VideoUpdate(double delta_sec, struct Video *v, const struct Context *ctx) {
             sws_scale(v->sws_ctx, (uint8_t const *const *)frame.data, frame.linesize, 0, v->decoder_ctx->height,
                       v->sws_frame->data, v->sws_frame->linesize);
 
-            void *pix;
+            uint8_t *pix;
             int pitch;
             SDL_LockTexture(v->tex, NULL, &pix, &pitch);
             for (int y = 0; y < v->sws_frame->height; ++y)
