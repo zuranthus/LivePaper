@@ -15,7 +15,7 @@ if(NOT MSVC)
 else()
     FetchContent_Declare(
         FFmpeg
-        URL https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-4.3.2-full_build-shared.7z
+        URL https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z
     )
     FetchContent_GetProperties(FFmpeg)
     if(NOT ffmpeg_POPULATED)
@@ -45,7 +45,7 @@ if(NOT MSVC)
 else()
     FetchContent_Declare(
         SDL2
-        URL https://www.libsdl.org/release/SDL2-devel-2.0.16-VC.zip
+        URL https://www.libsdl.org/release/SDL2-devel-2.30.9-VC.zip
     )
     FetchContent_GetProperties(SDL2)
     if(NOT sdl2_POPULATED)
