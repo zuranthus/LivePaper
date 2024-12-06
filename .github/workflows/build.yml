@@ -38,13 +38,14 @@ jobs:
 
     - name: Publish
       if: runner.os == 'Windows' && github.ref == 'refs/heads/main'
-      uses: ncipollo/release-action@v1.8.10
+      uses: ncipollo/release-action@v1
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         allowUpdates: true
         artifactErrorsFailBuild: true
         prerelease: true
         removeArtifacts: true
+        makeLatest: true
         tag: latest
         commit: main
         name: "Development Build"
