@@ -26,8 +26,17 @@ else()
             INTERFACE_INCLUDE_DIRECTORIES "${ffmpeg_SOURCE_DIR}/include/"
             INTERFACE_LINK_LIBRARIES "avcodec;avformat;avutil;swscale"
         )
-        set(FFMPEG_DLLS avcodec-58.dll avformat-58.dll avutil-56.dll swresample-3.dll swscale-5.dll)
-        list(TRANSFORM FFMPEG_DLLS PREPEND "${ffmpeg_SOURCE_DIR}/bin/")
+
+        set(FFMPEG_DLL_NAMES "avcodec" "avformat" "avutil" "swresample" "swscale")
+        set(FFMPEG_DLLS)
+        foreach(DLL_NAME ${FFMPEG_DLL_NAMES})
+            file(GLOB DLL_FILES "${ffmpeg_SOURCE_DIR}/bin/${DLL_NAME}*.dll")
+            list(LENGTH DLL_FILES DLL_FILES_LENGTH)
+            if(NOT DLL_FILES_LENGTH EQUAL 1)
+                message(FATAL_ERROR "Expected exactly one DLL for ${DLL_NAME}, but found ${DLL_FILES_LENGTH}")
+            endif()
+            list(APPEND FFMPEG_DLLS ${DLL_FILES})
+        endforeach()
     endif()
 endif()
 
